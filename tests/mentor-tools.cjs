@@ -1,0 +1,33 @@
+const {chromium,executable,appUrl}=require('./browser-setup.cjs');
+const assert=require('node:assert/strict');
+(async()=>{
+  const browser=await chromium.launch({executablePath:executable,headless:true});
+  const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(appUrl);
+  const header='Timestamp,DATE,NAME,Today chanted round,Today total reading time,Today total hearing time,Sleeping Time,Today\'s Wake-Up Time';
+  const rows=[['2026-10-04','2026-10-01','Example A',8],['2026-10-04','2026-10-02','Example A',8],['2026-10-04','2026-10-04','Example A',16],['2026-10-04','2026-10-01','Example B',16],['2026-10-04','2026-10-02','Example B',16],['2026-10-04','2026-10-03','Example B',16],['2026-10-04','2026-10-04','Example B',16]];
+  const csv=header+'\n'+rows.map(r=>r.concat(['01:00:00','01:00:00','2100','0500']).join(',')).join('\n');
+  await page.locator('#upload').setInputFiles({name:'fictional.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  for(const [id,date]of [['startDate','2026-10-01'],['endDate','2026-10-04']]){await page.locator('#'+id).fill(date);await page.locator('#'+id).dispatchEvent('change');}
+  await page.locator('[data-axis="rounds"]').click();await page.locator('#concernsOnly').check();
+  assert.equal(await page.locator('.matrix tbody tr').count(),1);assert.match(await page.locator('.concern-note').innerText(),/2 below target/);
+  assert.equal(await page.locator('.concern-day').count(),3);
+  await page.locator('#concernScope').selectOption('ongoing');assert.equal(await page.locator('.matrix tbody tr').count(),0);
+  await page.locator('#concernScope').selectOption('any');await page.locator('#concernDays').fill('4');await page.locator('#concernDays').dispatchEvent('change');assert.equal(await page.locator('.matrix tbody tr').count(),0);
+  await page.locator('#concernDays').fill('3');await page.locator('#concernDays').dispatchEvent('change');
+  await page.locator('[data-axis="reporting"]').click();assert.equal(await page.locator('.matrix tbody tr').count(),0);
+  await page.locator('#search').fill('nobody');await page.locator('#exportSummary').click();
+  assert.equal(await page.locator('#exportStart').inputValue(),'2026-10-01');assert.equal(await page.locator('#exportEnd').inputValue(),'2026-10-04');
+  await page.locator('#exportStart').fill('2026-10-02');await page.locator('#exportForm button[type="submit"]').click();
+  const text=await page.locator('#exportText').inputValue();assert.match(text,/2 Oct 2026/);assert.match(text,/Example A/);assert.match(text,/Example B/);assert.ok(text.indexOf('Example A')<text.indexOf('Example B'));
+  assert.equal(await page.locator('#startDate').inputValue(),'2026-10-01');
+  const downloadPromise=page.waitForEvent('download');await page.locator('#downloadSummary').click();assert.match((await downloadPromise).suggestedFilename(),/2026-10-02-to-2026-10-04.txt/);
+  await page.locator('#exportStart').fill('2026-10-05');await page.locator('#exportForm button[type="submit"]').click();assert.match(await page.locator('#exportError').innerText(),/valid/);assert.equal(await page.locator('#exportResult').isVisible(),false);
+  await page.locator('#exportStart').fill('2026-10-01');for(const checkbox of await page.locator('[name="ranking"]').all())await checkbox.uncheck();await page.locator('#exportForm button[type="submit"]').click();assert.match(await page.locator('#exportError').innerText(),/at least one/);
+  await page.locator('#exportStart').fill('2026-09-01');await page.locator('#exportEnd').fill('2026-09-03');
+  for(const checkbox of await page.locator('[name="ranking"]').all())await checkbox.check();
+  await page.locator('#exportForm button[type="submit"]').click();
+  const emptyText=await page.locator('#exportText').inputValue();assert.match(emptyText,/No usable data/);assert.match(emptyText,/reported 0\/3/);assert.match(emptyText,/READING MINUTES/);assert.match(emptyText,/SLEEPING REGULARITY/);assert.doesNotMatch(emptyText,/NaN|undefined/);
+  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  assert.deepEqual(errors,[]);await browser.close();console.log('Concern filtering, timing, adjustable N, export dates, ranking order, full population, download and validation passed.');
+})().catch(e=>{console.error(e);process.exit(1);});

@@ -8,6 +8,7 @@ FILES = [
     'examples/roster.csv', 'examples/responses.csv',
     'dist/index.html', 'dist/style.css', 'dist/help.css', 'dist/help-short.css',
     'dist/distribution.css', 'dist/app.js', 'dist/engine.js', 'dist/help.js',
+    'dist/mentor-tools.js', 'dist/mentor-tools.css',
     'dist/session.js', 'dist/vendor/xlsx.full.min.js', 'dist/vendor/LICENSE',
 ]
 
