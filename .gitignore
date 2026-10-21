@@ -9,3 +9,10 @@ dist/snapshot.js
 *.xls
 *.pdf
 *.png
+
+# Local-only documentation and analysis
+/docs/
+/private/
+/reports/
+/PROJECT_CONTEXT.md
+/DEVELOPER.md

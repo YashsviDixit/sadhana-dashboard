@@ -36,7 +36,7 @@ Default targets: 16 rounds, 60 minutes reading, 60 minutes hearing. Targets can 
 - `dist/help.js`: quick guide and contextual help links.
 - `dist/session.js`: empty new-tab state.
 - `tests/`: entirely fictional test inputs.
-- `scripts/package_release.py`: explicit allowlist for a mentor ZIP; private development artifacts are excluded.
+- `scripts/package_release.py`: creates the downloadable mentor ZIP.
 
 Use Node 20+ for development tests:
 
@@ -54,7 +54,7 @@ Package with Python 3 (standard library only):
 python3 scripts/package_release.py
 ```
 
-This writes a ZIP into `../releases`. Distribute that ZIP, not the private parent workspace. Older ZIP releases can be kept for testers who need a fixed version.
+This writes a ZIP into `../releases`. Older ZIP releases can be kept for testers who need a fixed version.
 
 ## Known limits
 
@@ -64,6 +64,6 @@ Mentors should confirm individual targets and roster membership before interpret
 
 ## Distribution and dependencies
 
-Only application files and fictional examples belong in this repository. Real student exports, screenshots, analysis and credentials must remain outside it. Session data is not included in releases.
+The application starts empty, and its example files are fictional. Imported student data is not uploaded or included in releases.
 
 The vendored SheetJS Community Edition 0.20.3 reader is distributed with its [license](dist/vendor/LICENSE). The project owner's application license has not yet been selected; this is currently a mentor testing distribution.
