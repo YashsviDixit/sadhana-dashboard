@@ -1,0 +1,1 @@
+require('./mentor-smoke.cjs');
