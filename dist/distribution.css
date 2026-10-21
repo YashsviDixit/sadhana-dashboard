@@ -7,3 +7,4 @@ dialog{overflow-x:hidden;overscroll-behavior:contain}
 .content-scroll table tbody td:first-child,.history-scroll table tbody td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 var(--line)}
 .content-scroll table thead th:first-child,.history-scroll table thead th:first-child{left:0;z-index:3;background:#fafbf8;box-shadow:1px 1px 0 var(--line)}
 .search:focus-within{outline:3px solid #a3be70;outline-offset:3px}
+.support-content{max-width:760px}.support-content label{display:block;font-size:12px;margin:16px 0 8px}.support-content select,.support-content textarea{display:block;width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-size:13px;line-height:1.5;font-family:inherit}.support-content textarea{resize:vertical;min-height:100px}.support-content form>.import-button{margin-top:14px}.support-content .setup-actions a{text-decoration:none}.support-content a{overflow-wrap:anywhere}

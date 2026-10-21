@@ -14,6 +14,8 @@ Default targets are 16 rounds, 60 minutes reading and 60 minutes hearing. Adjust
 
 Table headings and the first column stay visible while scrolling. Student windows keep their close button visible; click outside, press Escape, or use × to close them.
 
+For a problem, suggestion, or question, open **Feedback & support**. Prepare and review an email, then send it from your email app. You can also copy the text into webmail. Imported student records are not included automatically.
+
 Open the separate **Consecutive concerns** tab and choose a practice. Use **At least 3 consecutive concern days** to find below-target days and missing reports together. Change the number or select ongoing streaks only. Reporting counts missing reports only; unreadable practice values break a practice streak.
 
 Use **Export summary** at the bottom to choose report dates and rankings. Preview, copy for WhatsApp, or download a text file. Rankings include everyone and show the lowest values first, with reporting coverage alongside practice results. Changing export dates does not change dashboard dates.

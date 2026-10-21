@@ -1,0 +1,24 @@
+const {chromium,executable,appUrl}=require('./browser-setup.cjs');
+const assert=require('node:assert/strict'),path=require('node:path');
+(async()=>{
+  const browser=await chromium.launch({executablePath:executable,headless:true});const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[],requests=[];
+  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});
+  await page.goto(appUrl);
+  assert.doesNotMatch((await page.locator('main, aside').allInnerTexts()).join('\n'),/Yashsvi|dixit.yashsvi/);
+  await page.locator('#supportButton').focus();await page.keyboard.press('Enter');assert.equal(await page.locator('#supportDialog').isVisible(),true);
+  assert.match(await page.locator('#supportDialog').innerText(),/Yashsvi Dixit/);
+  await page.locator('#feedbackMessage').fill('   ');await page.locator('#supportForm button').click();assert.equal(await page.locator('#supportPreview').isVisible(),false);
+  const message='Please improve filtering & sorting + keyboard support? नमस्ते';
+  await page.locator('#feedbackMessage').fill(message);await page.locator('#feedbackType').selectOption({label:'Suggest an improvement'});await page.locator('#supportForm button').click();
+  const href=await page.locator('#supportMailLink').getAttribute('href'),url=new URL(href);assert.equal(url.pathname,'dixit.yashsvi@gmail.com');assert.match(url.searchParams.get('subject'),/Suggest an improvement/);assert.ok(url.searchParams.get('body').startsWith(message));assert.match(url.searchParams.get('body'),/Dashboard version: 0.1.0/);
+  await page.locator('#feedbackMessage').fill('Updated note');assert.equal(await page.locator('#supportPreview').isVisible(),false);
+  await page.keyboard.press('Escape');await page.locator('#upload').setInputFiles(path.resolve(__dirname,'../examples/responses.csv'));
+  await page.locator('#supportButton').click();await page.locator('#supportForm button').click();
+  const preview=await page.locator('#supportEmailText').inputValue();assert.doesNotMatch(preview,/Example Student|responses.csv|rounds|target/i);
+  await page.locator('#copyFeedback').click();await page.waitForFunction(()=>document.getElementById('supportCopyStatus').textContent.length>0);
+  await page.locator('#supportDialog').evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await page.locator('[data-close="supportDialog"]').click();assert.equal(await page.evaluate(()=>prepared.names.size),2);
+  await page.setViewportSize({width:390,height:844});await page.locator('#supportButton').click();assert.equal(await page.locator('#supportDialog').isVisible(),true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.mouse.click(5,5);assert.equal(await page.locator('#supportDialog').isVisible(),false);
+  assert.deepEqual(requests,[]);assert.deepEqual(errors,[]);await browser.close();console.log('Feedback checks passed: discreet entry, keyboard/mobile access, email encoding, preview validation, no automatic send/network or imported data, and preserved session.');
+})().catch(e=>{console.error(e);process.exit(1);});
