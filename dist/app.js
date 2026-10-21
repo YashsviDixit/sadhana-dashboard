@@ -111,4 +111,12 @@ $('matrixButton').onclick=()=>{display='matrix';$('matrixButton').classList.add(
 $('settingsButton').onclick=()=>$('settingsDialog').showModal();
 $('methodButton').onclick=()=>$('methodDialog').showModal();$('dismissNotice').onclick=()=>{noticeDismissed=true;$('notice').hidden=true;};
 $('resetData').onclick=()=>{data=window.createSadhanaSession();targets={};prepared=E.prepare(data);view='overview';$('search').value='';$('filter').value='all';if($('studentDialog').open)$('studentDialog').close();render();toast('Responses, student list and targets cleared from this tab.');};
+// Require both ends of the gesture on the backdrop, so dragging out of a dialog does not dismiss it.
+$('importResponses').onclick=()=>$('upload').click();
+$('importStudentList').onclick=()=>$('rosterUpload').click();
+let backdropPress=null;
+const outsideDialog=(event,dialog)=>{const r=dialog.getBoundingClientRect();return event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom;};
+document.addEventListener('pointerdown',event=>{const dialog=event.target.closest('dialog[open]');backdropPress=dialog&&event.target===dialog&&outsideDialog(event,dialog)?{dialog,pointer:event.pointerId}:null;});
+document.addEventListener('pointerup',event=>{const press=backdropPress;backdropPress=null;if(press&&press.pointer===event.pointerId&&press.dialog.open&&event.target===press.dialog&&outsideDialog(event,press.dialog))press.dialog.close();});
+document.addEventListener('pointercancel',()=>{backdropPress=null;});
 applyDatePreset(28);render();

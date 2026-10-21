@@ -1,1 +1,9 @@
 .setup-panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px;margin:24px 0}.setup-panel h2{font:24px Georgia,serif;margin:0 0 10px}.setup-panel p{font-size:12px;max-width:760px}.setup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.setup-actions label{display:inline-block}.import-button.secondary{background:#fff;border:1px solid var(--line);color:var(--green)}.header-actions{gap:10px}.session-label{font-size:10px;color:var(--muted)}@media(max-width:760px){.header-actions{flex-wrap:wrap;justify-content:flex-end}.topbar{height:auto;min-height:70px;padding-top:10px;padding-bottom:10px;gap:10px}.setup-panel{padding:20px}.setup-actions .import-button{font-size:12px}}
+.dialog-top{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line)}
+.dialog-top>div{min-width:0}.dialog-top h2{overflow-wrap:anywhere}.dialog-top .close-button{flex-shrink:0;min-width:44px;min-height:44px}
+dialog{overflow-x:hidden;overscroll-behavior:contain}
+.content-scroll,.history-scroll{overscroll-behavior:contain;isolation:isolate}
+.content-scroll table thead th,.history-scroll table thead th{position:sticky;top:0;z-index:2;background:#fafbf8;box-shadow:0 1px 0 var(--line)}
+.content-scroll table tbody td:first-child,.history-scroll table tbody td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 var(--line)}
+.content-scroll table thead th:first-child,.history-scroll table thead th:first-child{left:0;z-index:3;background:#fafbf8;box-shadow:1px 1px 0 var(--line)}
+.search:focus-within{outline:3px solid #a3be70;outline-offset:3px}
