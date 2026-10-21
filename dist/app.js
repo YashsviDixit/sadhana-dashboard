@@ -33,8 +33,9 @@ function render(){
   $('qualityBadge').textContent=prepared.flags.length;
   $('datasetSummary').textContent=data.source+' · '+data.rows.length.toLocaleString()+' submissions · latest '+fmtDate(prepared.latest);
   $('sourceLabel').textContent=data.rows.length?'Imported file':'No file loaded';
-  $('importSetup').hidden=help||(data.rows.length>0&&data.roster.length>0);
-  $('setupMessage').textContent=data.rows.length?'Only names in responses are listed so far. Import your roster to include students who have never submitted.':data.roster.length?'Roster loaded ('+data.roster.length+' names). Now import the raw response export.':'Import your Google Form response export. Add a roster to include students who have never submitted a response.';
+  $('importSetup').hidden=help||data.rows.length>0;
+  $('studentListStatus').textContent=data.roster.length?data.roster.length+' names in the student list.':'No student list added.';
+  $('setupMessage').textContent='Import your Google Form response export (Excel or CSV) to get started.';
   if(help){$('crumb').textContent='Help & getting started';$('pageTitle').textContent='Getting started with Sadhana.';$('pageSubtitle').textContent='The essentials first. A few extra details below if you need them.';$('explore').hidden=true;return;}
   if(!data.rows.length){$('cards').hidden=true;document.querySelector('.panel').hidden=true;document.querySelector('.date-controls').hidden=true;$('explore').hidden=true;return;}
   const start=$('startDate').value,end=$('endDate').value;
@@ -46,7 +47,7 @@ function render(){
   $('rangeLabel').textContent=(rangePreset===null?'Custom · ':'')+length+' '+(length===1?'day':'days');
   summaries=E.summarize(prepared,end,length,targets,axis);
   const steady=summaries.filter(s=>s.coverage>=.8).length,gaps=summaries.filter(s=>s.gap>=7).length,never=summaries.filter(s=>!prepared.records.some(r=>r.id===s.id)).length,coverage=mean(summaries.map(s=>s.coverage));
-  $('cards').innerHTML=[['Listed students',summaries.length,'From your roster and responses','all','◌',false],['Reporting consistently',steady,'Reports for ≥80% of selected practice dates','steady','✓',false],['A gap worth noticing',gaps,'No usable report for ≥7 practice dates','gap','◷',true],['No submissions',never,'Listed, but absent from this response export','never','◇',true]].map(([label,n,note,filter,icon,warn])=>'<button class="card '+(warn?'warning':'')+'" data-filter="'+filter+'"><span class="label">'+label+'</span><span class="card-icon">'+icon+'</span><div class="number">'+n+'</div><span class="note">'+note+'</span></button>').join('');
+  $('cards').innerHTML=[['Listed students',summaries.length,data.roster.length?'From responses and your student list':'From imported responses','all','◌',false],['Reporting consistently',steady,'Reports for ≥80% of selected practice dates','steady','✓',false],['A gap worth noticing',gaps,'No usable report for ≥7 practice dates','gap','◷',true],['No submissions',never,'Listed, but absent from this response export','never','◇',true]].map(([label,n,note,filter,icon,warn])=>'<button class="card '+(warn?'warning':'')+'" data-filter="'+filter+'"><span class="label">'+label+'</span><span class="card-icon">'+icon+'</span><div class="number">'+n+'</div><span class="note">'+note+'</span></button>').join('');
   document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view));document.querySelectorAll('[data-axis]').forEach(b=>b.classList.toggle('selected',b.dataset.axis===axis));
   $('crumb').textContent=view==='quality'?'Data quality':view==='reporting'?'Reporting & gaps':'Practice overview';
   $('pageTitle').textContent=view==='quality'?'Make the data trustworthy.':view==='reporting'?'Showing up, and checking in.':'Every day tells a story.';
@@ -87,9 +88,9 @@ function importedRoster(workbook){
     const names=new Map();for(const row of rows.slice(header+1)){const name=String(row[col]||'').trim();if(name)names.set(E.key(name),name);}
     if(names.size)return Array.from(names.values());
   }
-  throw new Error('Use a roster with a Name column and one student name per row.');
+  throw new Error('Use a student list with a Name column and one student name per row.');
 }
-$('rosterUpload').onchange=async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>30*1024*1024)throw new Error('Please use a roster smaller than 30 MB.');const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});const roster=importedRoster(wb);data={...data,roster,rosterSource:file.name};prepared=E.prepare(data);render();toast('Loaded '+roster.length+' roster names. Names in responses are also retained.');}catch(error){toast(error.message||'This roster could not be imported.');}event.target.value='';};
+$('rosterUpload').onchange=async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>30*1024*1024)throw new Error('Please use a student list smaller than 30 MB.');const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});const roster=importedRoster(wb);data={...data,roster,rosterSource:file.name};prepared=E.prepare(data);render();toast('Loaded '+roster.length+' student names. Names in responses are also retained.');}catch(error){toast(error.message||'This student list could not be imported.');}event.target.value='';};
 $('upload').onchange=async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>30*1024*1024)throw new Error('Please use an export smaller than 30 MB.');const buffer=await file.arrayBuffer();const wb=XLSX.read(buffer,{type:'array',cellDates:false,raw:/\.csv$/i.test(file.name)});const rows=importedRows(wb);if(!rows.length)throw new Error('No timestamped responses were found.');data={...data,source:file.name,rows,prescriptions:[]};prepared=E.prepare(data);render();toast('Imported '+rows.length.toLocaleString()+' responses. Scores recalculated from raw fields.');}catch(error){toast(error.message||'This file could not be imported.');}event.target.value='';};
 document.addEventListener('click',event=>{const person=event.target.closest('[data-person]');if(person){student(person.dataset.person);return;}const nav=event.target.closest('[data-view]');if(nav){view=nav.dataset.view;if(view==='reporting')axis='reporting';render();if(view==='help')window.scrollTo({top:0,behavior:'smooth'});return;}const a=event.target.closest('[data-axis]');if(a){axis=a.dataset.axis;render();return;}const card=event.target.closest('[data-filter]');if(card){view='reporting';axis='reporting';$('filter').value=card.dataset.filter;render();$('content').scrollIntoView({behavior:'smooth',block:'nearest'});return;}const close=event.target.closest('[data-close]');if(close)$(close.dataset.close).close();});
 document.addEventListener('click',event=>{
@@ -101,6 +102,7 @@ for(const id of ['startDate','endDate'])$(id).addEventListener('change',()=>{ran
 for(const id of ['filter','sort'])$(id).addEventListener('change',render);$('search').addEventListener('input',render);
 document.querySelectorAll('[data-range-days]').forEach(b=>b.addEventListener('click',()=>{applyDatePreset(+b.dataset.rangeDays);render();}));
 $('matrixButton').onclick=()=>{display='matrix';$('matrixButton').classList.add('selected');$('tableButton').classList.remove('selected');render();};$('tableButton').onclick=()=>{display='table';$('tableButton').classList.add('selected');$('matrixButton').classList.remove('selected');render();};
+$('settingsButton').onclick=()=>$('settingsDialog').showModal();
 $('methodButton').onclick=()=>$('methodDialog').showModal();$('dismissNotice').onclick=()=>{noticeDismissed=true;$('notice').hidden=true;};
-$('resetData').onclick=()=>{data=window.createSadhanaSession();targets={};prepared=E.prepare(data);view='overview';$('search').value='';$('filter').value='all';if($('studentDialog').open)$('studentDialog').close();render();toast('Responses, roster and targets cleared from this tab.');};
+$('resetData').onclick=()=>{data=window.createSadhanaSession();targets={};prepared=E.prepare(data);view='overview';$('search').value='';$('filter').value='all';if($('studentDialog').open)$('studentDialog').close();render();toast('Responses, student list and targets cleared from this tab.');};
 applyDatePreset(28);render();

@@ -7,7 +7,7 @@
       <div class="eyebrow">QUICK GUIDE</div>
       <h2 id="guideStartTitle">Three things to do first</h2>
       <ol class="guide-steps">
-        <li><span class="step-number">1</span><div><h3>Import your files.</h3><p>Load the raw response export. Add your roster (a Name column) to include students who have never reported.</p></div></li>
+        <li><span class="step-number">1</span><div><h3>Import responses.</h3><p>Choose your Google Form response export (Excel or CSV). That’s enough to get started.</p></div></li>
         <li><span class="step-number">2</span><div><h3>Choose dates and a view.</h3><p>Presets fill start and end dates, ending yesterday. Both dates are included. Reporting shows missing updates; the other views show each practice.</p></div></li>
         <li><span class="step-number">3</span><div><h3>Click a student’s name.</h3><p>See their daily values, submission dates, scores, and personal targets.</p></div></li>
       </ol>
@@ -48,13 +48,13 @@
       </div></details>
       <details id="guide-quality"><summary>Check an entry or load a new file</summary><div class="guide-detail">
         <p><strong>Data quality</strong> lists future dates, invalid values, and duplicates across the whole file. Invalid/future dates are excluded from the calendar; duplicate days use the latest submission.</p>
-        <p><strong>Import responses:</strong> choose the raw Excel/CSV export with its original headers. It replaces the current responses. Import roster accepts a Name column with one student per row. Files stay in this tab; opening Help keeps them, but reloading clears them.</p>
+        <p><strong>Import responses:</strong> choose the raw Excel/CSV export with its original headers. It replaces the current responses. Settings → Student list is optional: add a Name column with one student per row to include students who have never reported. Files stay in this tab; opening Help keeps them, but reloading clears them.</p>
         <button class="text-button" data-guide-view="quality">Open Data quality →</button>
       </div></details>
       <details id="guide-score"><summary>Scores, targets, and important assumptions</summary><div class="guide-detail">
         <p>Scores follow the mentor’s PDF: five components, up to 100 points. Unreadable components leave the total unknown. Score colours use ≥80, 50–79, and &lt;50.</p>
         <p>Default targets: <strong>16 rounds, 60 minutes reading, 60 minutes hearing.</strong> Confirm personal targets in a student’s history. They apply to the loaded history in this tab and are cleared on reload.</p>
-        <p>Listed names come from your imported roster and responses. Without a roster, students who never submitted cannot be identified. Enrollment and absence dates are not tracked; check those before interpreting a gap.</p>
+        <p>Listed names come from responses, plus an optional student list in Settings. Without that list, students who never submitted cannot be identified. Enrollment and absence dates are not tracked; check those before interpreting a gap.</p>
         <button class="text-button" data-guide-method>Exact scoring rules & assumptions →</button>
       </div></details>
     </section>

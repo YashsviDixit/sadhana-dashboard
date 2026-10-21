@@ -5,8 +5,7 @@ A simple dashboard for mentors to explore their students’ daily practice and r
 **[Open the dashboard](https://yashsvidixit.github.io/sadhana-dashboard/)**
 
 1. Import your Google Form responses (Excel or CSV).
-2. Add your student roster to include people who haven’t submitted.
-3. Choose dates and explore reporting, chanting, reading, hearing, sleep, and waking.
+2. Choose dates and explore reporting, chanting, reading, hearing, sleep, and waking.
 
 Click **Start here** in the dashboard for help.
 
