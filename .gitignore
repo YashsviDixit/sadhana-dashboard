@@ -1,0 +1,11 @@
+.sites-runtime/
+node_modules/
+*.zip
+.openai/
+node_modules/
+.DS_Store
+dist/snapshot.js
+*.xlsx
+*.xls
+*.pdf
+*.png
