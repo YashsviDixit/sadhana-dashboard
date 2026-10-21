@@ -12,7 +12,7 @@ Each tab starts empty. Your imported data and personal target edits stay in that
 
 Default targets are 16 rounds, 60 minutes reading and 60 minutes hearing. Adjust individual targets in a student's history for the current tab. Missing reports are highlighted without treating practice as zero.
 
-Use **At least 3 consecutive concern days** in a practice view to find below-target days and missing reports together. Change the number or select ongoing streaks only. Reporting counts missing reports only; unreadable practice values break a practice streak.
+Open the separate **Consecutive concerns** tab and choose a practice. Use **At least 3 consecutive concern days** to find below-target days and missing reports together. Change the number or select ongoing streaks only. Reporting counts missing reports only; unreadable practice values break a practice streak.
 
 Use **Export summary** at the bottom to choose report dates and rankings. Preview, copy for WhatsApp, or download a text file. Rankings include everyone and show the lowest values first, with reporting coverage alongside practice results. Changing export dates does not change dashboard dates.
 
