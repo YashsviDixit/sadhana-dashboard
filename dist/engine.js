@@ -75,6 +75,23 @@
     return {names,records,days,flags,latest};
   }
   function displayRaw(v){return v&&typeof v==='object'?v.kind+': '+v.value:String(v??'blank');}
+  function meetsTarget(r,t,axis){
+    if(!r)return null;
+    if(axis==='reporting')return true;
+    const v=axis==='score'?r.scores.total:r[axis];
+    if(v===null)return null;
+    return axis==='score'?v>=80:axis==='wake'?v<=300:axis==='sleep'?v>=720&&v<1320:v>=t[axis];
+  }
+  function concernStreaks(history,calendar,t,axis){
+    const streaks=[];let run=null;
+    history.forEach((r,i)=>{
+      const reason=!r?'missing':meetsTarget(r,t,axis)===false?'below':null;
+      if(!reason){run=null;return;}
+      if(!run){run={start:calendar[i],end:calendar[i],length:0,missing:0,below:0,ongoing:false};streaks.push(run);}
+      run.end=calendar[i];run.length++;run[reason]++;run.ongoing=i===history.length-1;
+    });
+    return streaks;
+  }
   function summarize(prepared,end,length,targets,axis='reporting'){
     const start=shift(end,1-length);const calendar=Array.from({length},(_,i)=>shift(start,i));
     return Array.from(prepared.names,([id,name])=>{
@@ -82,16 +99,17 @@
       const all=prepared.records.filter(r=>r.id===id&&r.submitted&&r.submitted.date<=end);
       const history=calendar.map(d=>{const r=prepared.days.get(id+'|'+d);return r?{...r,scores:scores(r,t)}:null;});
       const observed=history.filter(Boolean),known=observed.filter(r=>axis==='reporting'||(axis==='score'?r.scores.total!==null:r[axis]!==null));
-      const met=r=>axis==='reporting'?true:axis==='score'?r.scores.total>=80:axis==='wake'?r.wake<=300:axis==='sleep'?r.sleep>=720&&r.sleep<1320:r[axis]>=t[axis];
+      const met=r=>meetsTarget(r,t,axis);
       const meets=known.filter(met).length;const value=r=>axis==='reporting'?1:axis==='score'?r.scores.total:r[axis];
       const avg=arr=>arr.length?arr.reduce((a,r)=>a+value(r),0)/arr.length:null;
       const midpoint=Math.floor(length/2);const early=history.slice(0,midpoint).filter(r=>r&&known.includes(r)),late=history.slice(midpoint).filter(r=>r&&known.includes(r));
       const trend=early.length>=3&&late.length>=3?avg(late)-avg(early):null;
       const last=all.map(r=>r.submitted.date).sort().pop()||null;
       let gap=0;for(let i=history.length-1;i>=0&&!history[i];i--)gap++;
-      return {id,name,target:t,history,observed:observed.length,known:known.length,meets,rate:known.length?meets/known.length:null,coverage:observed.length/length,average:avg(known),trend,last,gap,flags:prepared.flags.filter(f=>f.id===id),calendar};
+      const streaks=concernStreaks(history,calendar,t,axis);
+      return {id,name,target:t,history,streaks,observed:observed.length,known:known.length,meets,rate:known.length?meets/known.length:null,coverage:observed.length/length,average:avg(known),trend,last,gap,flags:prepared.flags.filter(f=>f.id===id),calendar};
     });
   }
-  const api={key,date,timestamp,minutes,clock,rounds,scores,prepare,summarize,shift,distance,displayRaw};
+  const api={key,date,timestamp,minutes,clock,rounds,scores,prepare,summarize,shift,distance,displayRaw,meetsTarget,concernStreaks};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SadhanaEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
