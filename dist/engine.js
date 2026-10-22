@@ -110,6 +110,16 @@
       return {id,name,target:t,history,streaks,observed:observed.length,known:known.length,meets,rate:known.length?meets/known.length:null,coverage:observed.length/length,average:avg(known),trend,last,gap,flags:prepared.flags.filter(f=>f.id===id),calendar};
     });
   }
-  const api={key,date,timestamp,minutes,clock,rounds,scores,prepare,summarize,shift,distance,displayRaw,meetsTarget,concernStreaks};
+  // Export policy: reuse PDF component marks, but give missing/unreadable components
+  // no credit and include every selected date. Do not change dashboard summaries.
+  function exportRanking(prepared,end,length,targets,component){
+    const components=['rounds','reading','hearing','wake','sleep'];
+    if(!['score','reporting',...components].includes(component))throw new Error('Unknown export ranking');
+    return summarize(prepared,end,length,targets,'score').map(s=>{
+      const total=s.history.reduce((sum,r)=>sum+(!r?0:component==='score'?components.reduce((n,k)=>n+(r.scores[k]??0),0):(r.scores[component]??0)),0);
+      return {...s,metric:component==='reporting'?s.coverage:total/length};
+    }).sort((a,b)=>a.metric-b.metric||a.coverage-b.coverage||a.name.localeCompare(b.name));
+  }
+  const api={key,date,timestamp,minutes,clock,rounds,scores,prepare,summarize,exportRanking,shift,distance,displayRaw,meetsTarget,concernStreaks};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SadhanaEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
