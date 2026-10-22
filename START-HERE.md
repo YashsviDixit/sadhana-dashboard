@@ -20,4 +20,6 @@ Open the separate **Consecutive concerns** tab and choose a practice. Use **At l
 
 Use **Export report** beside Import responses at the top to choose report dates and rankings. Preview, open the formatted PDF/print report and choose Save as PDF in the print window, copy for WhatsApp, or download a text file. Rankings include everyone and show the lowest values first, with reporting coverage alongside practice results. Changing export dates does not change dashboard dates.
 
+The default report includes Overall score, Chanting, Reading and Reporting. Expand **Choose report sections** for Hearing, Waking or Sleeping. Practice results are average methodology marks out of 20; overall is out of 100. Every selected date counts, and missing/unreadable components earn zero credit while readable components retain their marks. This export-only policy does not change the dashboard averages or the original data.
+
 Please report the browser/OS, version 0.1.0, what you tried, and what went wrong. Use fictional or redacted examples when sharing feedback. Desktop Chrome has been tested; other browsers and mobile file workflows need mentor testing. The date presets end yesterday in India time, so use explicit dates when testing an old export.
