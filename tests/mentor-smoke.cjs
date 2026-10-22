@@ -7,7 +7,7 @@ const assert=require('node:assert/strict'),path=require('node:path');
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))external.push(r.url());});
   await page.clock.install({time:new Date('2026-10-21T08:00:00Z')});await page.goto(appUrl);
   assert.equal(await page.locator('#importSetup').isVisible(),true);
-  assert.equal(await page.locator('.header-actions .import-button').count(),1);
+  assert.equal(await page.locator('.header-actions .import-button:visible').count(),1);
   assert.equal(await page.locator('.header-actions').innerText().then(t=>/roster|student list/i.test(t)),false);
   assert.equal(await page.locator('#rosterUpload').evaluate(el=>!!el.closest('#settingsDialog')),true);
   assert.equal(await page.locator('.matrix tbody tr').count(),0);
