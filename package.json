@@ -4,7 +4,7 @@
   "private": true,
   "description": "Browser-local sadhana dashboard for mentor testing",
   "scripts": {
-    "test": "node tests/engine.test.cjs",
+    "test": "node tests/engine.test.cjs && node tests/value-interpretation.test.cjs && node tests/two-source.test.cjs",
     "test:browser": "node tests/browser.cjs"
   },
   "devDependencies": { "playwright-core": "1.64.0" },
