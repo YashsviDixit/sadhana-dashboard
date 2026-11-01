@@ -33,6 +33,8 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
   });
   await page.clock.install({time:new Date('2026-11-01T12:00:00Z')});
   await page.goto('http://127.0.0.1:'+server.address().port);
+  const defaults=await page.locator('#googleSourcesForm input[type=password]').evaluateAll(inputs=>inputs.map(input=>input.value));
+  assert.equal(defaults.length,2);assert.ok(defaults.every(value=>new URL(value).hostname==='docs.google.com'));assert.notEqual(defaults[0],defaults[1]);
   await page.locator('#dataSources').click();await page.locator('#responseSheet').fill('https://docs.google.com/spreadsheets/d/'+rID+'/edit');await page.locator('#prescriptionSheet').fill('https://docs.google.com/spreadsheets/d/'+pID+'/edit');
   await page.locator('#googleConnect').click();await page.waitForFunction(()=>data.rows.length===3);
   assert.equal(await page.evaluate(()=>window.testGoogleScope),'https://www.googleapis.com/auth/spreadsheets.readonly');
@@ -72,6 +74,7 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
   await page.locator('[data-close="matchingDialog"]').click();await page.locator('[data-close="sourcesDialog"]').click();await page.locator('#resetData').click();
   assert.equal(await page.evaluate(()=>data.rows.length),0);assert.equal(await page.evaluate(()=>workspace.prescriptions),null);assert.equal(await page.locator('#refreshSheets').isVisible(),false);
   assert.equal(await page.evaluate(()=>localStorage.length),0);assert.equal(await page.evaluate(()=>sessionStorage.length),0);
+  assert.deepEqual(await page.locator('#googleSourcesForm input[type=password]').evaluateAll(inputs=>inputs.map(input=>input.value)),defaults);
   const beforeFiles=calls.length;
   const pcsv=pHeader.join(',')+'\n2026-09-01,Example A,8,90,30\n',rcsv=rHeader.join(',')+'\n2026-10-02,2026-10-01,Example A,8,00:30:00,01:30:00,2100,0500\n';
   await page.locator('#prescriptionUpload').setInputFiles({name:'fictional-targets.csv',mimeType:'text/csv',buffer:Buffer.from(pcsv)});

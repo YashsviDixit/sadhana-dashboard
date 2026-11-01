@@ -1,6 +1,10 @@
 'use strict';
 (function(){
   const S=window.SadhanaSources,M=window.SadhanaMatching,G=window.SadhanaGoogleSheets;
+  const defaultSheets=Object.freeze({
+    responses:'https://docs.google.com/spreadsheets/d/11-ERIq__kEYRs4EixazJ2K_8ZY2dCxEqpv3HWBsoSdc/edit',
+    prescriptions:'https://docs.google.com/spreadsheets/d/1Rx3ktV2hVsnmHFNMyFtNUYudigXXYiH2qizJE_IPdnU/edit'
+  });
   let googleToken=null,expires=0,tokenClient=null,controller=null,generation=0,authorizationGeneration=null,committing=false,googleConfig=null;
   let activeGroup=null,activeValue=null,draggedGroup=null;
   const rawText=v=>E.displayRaw(v),targetText=t=>t&&M.valid(t)?t.rounds+' rounds · '+t.reading+' min reading · '+t.hearing+' min hearing':'Targets need review';
@@ -12,8 +16,9 @@
     <p>Load daily responses and personal prescriptions separately. Your account must have access to both Google Sheets.</p>
     <div id="sourceStatus" class="source-status-list" aria-live="polite"></div>
     <form id="googleSourcesForm">
-      <label>Daily response sheet<input id="responseSheet" required type="text" placeholder="Paste the Google Sheets link" autocomplete="off"></label>
-      <label>Personal prescription sheet<input id="prescriptionSheet" required type="text" placeholder="Paste the Google Sheets link" autocomplete="off"></label>
+      <label>Daily response sheet<input id="responseSheet" required type="password" value="${esc(defaultSheets.responses)}" placeholder="Google Sheets link" autocomplete="off" spellcheck="false"></label>
+      <label>Personal prescription sheet<input id="prescriptionSheet" required type="password" value="${esc(defaultSheets.prescriptions)}" placeholder="Google Sheets link" autocomplete="off" spellcheck="false"></label>
+      <p>Both sheets are preconfigured. You can replace the masked links for another group.</p>
       <details><summary>Choose worksheets · only if needed</summary><p>Leave blank to find the worksheet by its column headings.</p><label>Response worksheet<input id="responseTab" type="text" placeholder="Automatic"></label><label>Prescription worksheet<input id="prescriptionTab" type="text" placeholder="Automatic"></label></details>
       <p>Google access is read-only. Data, access tokens, matches and corrections stay in this tab; reload clears them.</p>
       <div class="setup-actions"><button id="googleConnect" class="import-button" type="submit" disabled>Continue with Google</button><button id="googleDisconnect" class="text-button" type="button" hidden>Forget Google access</button></div>
@@ -133,7 +138,7 @@
         error_callback:()=>{setBusy(false);$('googleStatus').textContent='The Google popup did not complete. Allow popups and click Continue with Google again.';},
         callback:response=>{if(authorizationGeneration!==generation){delete response.access_token;return;}authorizationGeneration=null;setBusy(false);if(response.error||!response.access_token){$('googleStatus').textContent='Google authorization was not completed. Check account access and tester approval, then try again.';return;}
           googleToken=response.access_token;expires=Date.now()+(Number(response.expires_in)||300)*1000-30000;delete response.access_token;$('googleDisconnect').hidden=false;readGoogle();}
-      });setBusy(false);$('googleStatus').textContent='Ready. Enter both sheet links, then continue with Google.';
+      });setBusy(false);$('googleStatus').textContent='Ready. Continue with Google to read the configured sheets.';
     };
     script.onerror=()=>{script.remove();$('googleStatus').textContent='Google sign-in could not load. Reopen Data sources to retry, or use local files.';};document.head.append(script);
   }

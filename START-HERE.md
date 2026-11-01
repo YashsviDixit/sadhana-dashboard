@@ -2,7 +2,7 @@
 
 1. Extract the ZIP completely.
 2. Open `dist/index.html` in a current desktop browser. No Python, Node, Git or installation is needed to use it.
-3. For Google Sheets, open the hosted dashboard → **Data sources**, paste the response and prescription sheet links, and continue with Google using an account that can read both sheets. Use **Refresh sheets** for later updates. For local files, use **Import responses** and add the separate target file through **Data sources → Use local files instead → Import prescriptions**. Google sign-in requires the hosted site or localhost; local file imports work in the extracted dashboard.
+3. For Google Sheets, open the hosted dashboard → **Data sources**, use the prefilled, masked response and prescription links (or replace them for another group), and continue with Google using an account that can read both sheets. Use **Refresh sheets** for later updates. For local files, use **Import responses** and add the separate target file through **Data sources → Use local files instead → Import prescriptions**. Google sign-in requires the hosted site or localhost; local file imports work in the extracted dashboard.
 4. Optional: open **Settings → Student list** to include students who never submitted. Use an Excel/CSV file with a `Name` heading and one student per row; a template is in `examples/roster.csv`.
 5. Choose dates, explore a practice, and click a student's name for their history. “Start here” in the app explains the views.
 
