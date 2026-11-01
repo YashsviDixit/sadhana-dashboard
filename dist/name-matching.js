@@ -8,6 +8,7 @@
     for(const g of map.values()){
       const first=g.entries[0].target;
       g.target=valid(first)&&g.entries.every(r=>valid(r.target)&&['rounds','reading','hearing'].every(k=>Math.abs(r.target[k]-first[k])<.0001))?{...first}:null;
+      g.common=Object.fromEntries(['rounds','reading','hearing'].map(k=>[k,Number.isFinite(first[k])&&first[k]>0&&g.entries.every(r=>Number.isFinite(r.target[k])&&Math.abs(r.target[k]-first[k])<.0001)?first[k]:null]));
     }return map;
   }
   function normalize(name){return E.key(name).normalize('NFKC').replace(/[.,]/g,' ').split(/\s+/).filter(x=>x&&!['dr','shri','sri','prabhu','ji','mata','mataji'].includes(x)).join(' ');}
@@ -29,12 +30,18 @@
       else if(map.has(id))result.set(id,{group:id,origin:'exact'});
     }return result;
   }
+  function proposals(names,map,links){
+    return new Map(Array.from(names,([id,name])=>{
+      const link=links.get(id),options=suggestions(name,map);
+      return [id,{group:link?link.group:options[0]?.id??null,origin:link?link.origin:options.length?'suggested':'unmatched'}];
+    }));
+  }
   function targets(names,map,bindings,resolved=new Map(),overrides={}){
     const result={};for(const [id]of names){
       const g=map.get(bindings.get(id)?.group),t=g?(resolved.get(g.id)||g.target):null;
       Object.defineProperty(result,id,{value:overrides[id]||t||empty(),enumerable:true,writable:true,configurable:true});
     }return result;
   }
-  const api={groups,similarity,suggestions,reconcile,targets,empty,valid};
+  const api={groups,similarity,suggestions,reconcile,proposals,targets,empty,valid};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SadhanaMatching=api;
 })(typeof window!=='undefined'?window:globalThis);

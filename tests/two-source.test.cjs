@@ -46,6 +46,15 @@ w.manual['example a']={rounds:8,reading:30,hearing:90};w.setResponses(rows,{key:
 assert.throws(()=>w.confirmLink('example a','does not exist'));
 assert.throws(()=>w.confirmTarget('example a',{rounds:1.5,reading:30,hearing:60}));
 
+// Cold-start proposals remain drafts until one batch confirmation, including
+// choices not currently visible under a UI search/filter.
+const cold=new Workspace();cold.setResponses(rows,{key:'cold-r'});cold.setPrescriptions(ps,{key:'cold-p'});cold.targets(names);
+const proposals=M.proposals(names,cold.groups,cold.links);assert.equal(proposals.get('example b').group,'example b prabhu ji');assert.equal(cold.links.has('example b'),false);
+const draft=cold.copy();draft.confirmLinks(proposals);assert.equal(draft.targets(names)['example b'].hearing,120);assert.equal(cold.links.has('example b'),false);
+const invalid=new Map([['example a',{group:null}],['example b',{group:'missing'}]]);
+assert.throws(()=>cold.confirmLinks(invalid));assert.equal(cold.links.get('example a').group,'example a');
+const partial=M.groups([{...ps[0],target:{rounds:8,reading:null,hearing:90}}]).get('example a');assert.equal(partial.target,null);assert.deepEqual(partial.common,{rounds:8,reading:null,hearing:90});
+
 // XLSX and API adapters produce the same typed quantities, independent of locale display.
 const wb=X.utils.book_new(),ws=X.utils.aoa_to_sheet([headers,['2026-10-02','2026-10-01','Example A',8,30/1440,90/1440,'2100','0500']]);ws.E2.z='[h]:mm:ss';ws.F2.z='[h]:mm:ss';X.utils.book_append_sheet(wb,ws,'Daily');
 const imported=X.read(X.write(wb,{type:'buffer',bookType:'xlsx'}),{type:'buffer',cellNF:true});
