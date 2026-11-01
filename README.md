@@ -4,7 +4,7 @@ A simple dashboard for mentors to explore their students’ daily practice and r
 
 **[Open the dashboard](https://yashsvidixit.github.io/sadhana-dashboard/)**
 
-1. Open **Data sources** to connect your response and prescription Google Sheets, or import a local response file.
+1. Click **Load data**, choose two local files or Google Sheets, then review names and personal targets.
 2. Choose dates and explore reporting, chanting, reading, hearing, sleep, and waking.
 
 Click **Start here** in the dashboard for help.

@@ -14,7 +14,7 @@
   $('exportForm').addEventListener('input',()=>{$('exportResult').hidden=true;$('exportError').textContent='';});
   $('exportForm').onsubmit=event=>{
     event.preventDefault();const start=$('exportStart').value,end=$('exportEnd').value,selected=Array.from(dialog.querySelectorAll('[name="ranking"]:checked'),el=>el.value);
-    const error=!E.date(start)||!E.date(end)||start>end?'Choose a valid start and end date.':!selected.length?'Choose at least one ranking.':!prepared.names.size?'Import responses or a student list first.':'';
+    const error=!E.date(start)||!E.date(end)||start>end?'Choose a valid start and end date.':!selected.length?'Choose at least one ranking.':!prepared.names.size?'Load your data first.':'';
     $('exportError').textContent=error;if(error){$('exportResult').hidden=true;return;}
     const length=E.distance(end,start)+1;
     const lines=['SADHANA SUMMARY',fmtDate(start)+' – '+fmtDate(end)+' · '+length+' days','Lowest first. Average daily methodology marks across every selected date.','Missing or unreadable components earn zero credit; readable components retain their marks. This is an export policy, not a claim that no practice occurred.',(workspace.prescriptions?'Matched personal targets apply across this period. Unresolved targets are shown as unavailable and are not ranked.':'Default targets: 16 rounds, 60 min reading/hearing; personal targets used where confirmed.')+' Waking and sleeping marks follow the methodology time bands.',''];

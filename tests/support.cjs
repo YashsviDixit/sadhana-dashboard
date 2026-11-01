@@ -1,3 +1,4 @@
+const loadFiles=require('./load-files.cjs');
 const {chromium,executable,appUrl}=require('./browser-setup.cjs');
 const assert=require('node:assert/strict'),path=require('node:path');
 (async()=>{
@@ -12,7 +13,7 @@ const assert=require('node:assert/strict'),path=require('node:path');
   await page.locator('#feedbackMessage').fill(message);await page.locator('#feedbackType').selectOption({label:'Suggest an improvement'});await page.locator('#supportForm button').click();
   const href=await page.locator('#supportMailLink').getAttribute('href'),url=new URL(href);assert.equal(url.pathname,'dixit.yashsvi@gmail.com');assert.match(url.searchParams.get('subject'),/Suggest an improvement/);assert.ok(url.searchParams.get('body').startsWith(message));assert.match(url.searchParams.get('body'),/Dashboard version: 0.1.0/);
   await page.locator('#feedbackMessage').fill('Updated note');assert.equal(await page.locator('#supportPreview').isVisible(),false);
-  await page.keyboard.press('Escape');await page.locator('#upload').setInputFiles(path.resolve(__dirname,'../examples/responses.csv'));
+  await page.keyboard.press('Escape');await loadFiles(page,path.resolve(__dirname,'../examples/responses.csv'));
   await page.locator('#supportButton').click();await page.locator('#supportForm button').click();
   const preview=await page.locator('#supportEmailText').inputValue();assert.doesNotMatch(preview,/Example Student|responses.csv|rounds|target/i);
   await page.locator('#copyFeedback').click();await page.waitForFunction(()=>document.getElementById('supportCopyStatus').textContent.length>0);

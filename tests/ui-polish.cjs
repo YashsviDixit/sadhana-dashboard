@@ -1,3 +1,4 @@
+const loadFiles=require('./load-files.cjs');
 const {chromium,executable,appUrl}=require('./browser-setup.cjs');
 const assert=require('node:assert/strict');
 (async()=>{
@@ -5,11 +6,11 @@ const assert=require('node:assert/strict');
   const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(appUrl);
   await page.locator('#importResponses').focus();
-  const picker=page.waitForEvent('filechooser');await page.keyboard.press('Enter');assert.equal((await picker).isMultiple(),false);
+  await page.keyboard.press('Enter');assert.equal(await page.locator('#sourcesDialog').isVisible(),true);await page.locator('#chooseLocal').click();const picker=page.waitForEvent('filechooser');await page.locator('#upload').click();const chooser=await picker;assert.equal(chooser.isMultiple(),false);await chooser.setFiles([]);await page.locator('[data-close="sourcesDialog"]').click();
   for(const view of ['overview','reporting','quality'])assert.ok(await page.locator('.nav[data-view="'+view+'"]').getAttribute('aria-label'));
   assert.equal(await page.locator('#studentDialog').getAttribute('aria-labelledby'),'studentName');
   const csv='Timestamp,DATE,NAME,Today chanted round,Today total reading time,Today total hearing time,Sleeping Time,Today\'s Wake-Up Time\n'+Array.from({length:50},(_,i)=>'2026-10-20,2026-10-19,Example '+String(i).padStart(2,'0')+',16,01:00:00,01:00:00,2100,0500').join('\n');
-  await page.locator('#upload').setInputFiles({name:'fictional.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  await loadFiles(page,{name:'fictional.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
   await page.locator('[data-range-days="56"]').click();
   async function checkFrozen(){
     await page.locator('#content').scrollIntoViewIfNeeded();

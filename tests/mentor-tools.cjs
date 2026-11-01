@@ -1,3 +1,4 @@
+const loadFiles=require('./load-files.cjs');
 const {chromium,executable,appUrl}=require('./browser-setup.cjs');
 const assert=require('node:assert/strict');
 (async()=>{
@@ -7,7 +8,7 @@ const assert=require('node:assert/strict');
   const header='Timestamp,DATE,NAME,Today chanted round,Today total reading time,Today total hearing time,Sleeping Time,Today\'s Wake-Up Time';
   const rows=[['2026-10-04','2026-10-01','Example A',8],['2026-10-04','2026-10-02','Example A',8],['2026-10-04','2026-10-04','Example A',16],['2026-10-04','2026-10-01','Example B',16],['2026-10-04','2026-10-02','Example B',16],['2026-10-04','2026-10-03','Example B',16],['2026-10-04','2026-10-04','Example B',16]];
   const csv=header+'\n'+rows.map(r=>r.concat(['01:00:00','01:00:00','2100','0500']).join(',')).join('\n');
-  await page.locator('#upload').setInputFiles({name:'fictional.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  await loadFiles(page,{name:'fictional.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
   for(const [id,date]of [['startDate','2026-10-01'],['endDate','2026-10-04']]){await page.locator('#'+id).fill(date);await page.locator('#'+id).dispatchEvent('change');}
   await page.locator('[data-axis="rounds"]').click();
   const originalLegend=await page.locator('#legend').innerHTML();
