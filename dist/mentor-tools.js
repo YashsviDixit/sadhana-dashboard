@@ -17,7 +17,7 @@
     const error=!E.date(start)||!E.date(end)||start>end?'Choose a valid start and end date.':!selected.length?'Choose at least one ranking.':!prepared.names.size?'Import responses or a student list first.':'';
     $('exportError').textContent=error;if(error){$('exportResult').hidden=true;return;}
     const length=E.distance(end,start)+1;
-    const lines=['SADHANA SUMMARY',fmtDate(start)+' – '+fmtDate(end)+' · '+length+' days','Lowest first. Average daily methodology marks across every selected date.','Missing or unreadable components earn zero credit; readable components retain their marks. This is an export policy, not a claim that no practice occurred.','Default targets: 16 rounds, 60 min reading/hearing; personal targets used where confirmed. Waking and sleeping marks follow the methodology time bands.',''];
+    const lines=['SADHANA SUMMARY',fmtDate(start)+' – '+fmtDate(end)+' · '+length+' days','Lowest first. Average daily methodology marks across every selected date.','Missing or unreadable components earn zero credit; readable components retain their marks. This is an export policy, not a claim that no practice occurred.',(workspace.prescriptions?'Matched personal targets apply across this period. Unresolved targets are shown as unavailable and are not ranked.':'Default targets: 16 rounds, 60 min reading/hearing; personal targets used where confirmed.')+' Waking and sleeping marks follow the methodology time bands.',''];
     const sections=[];
     for(const key of selected){
       const a=key;
@@ -25,7 +25,7 @@
       const rows=E.exportRanking(prepared,end,length,targets,a);
       lines.push(label.toUpperCase()+(a==='reporting'?' · dates covered':' · average daily marks out of '+(a==='score'?100:20)));
       let rank=0;const tableRows=[];
-      for(const s of rows){const prefix=String(++rank);const metric=a==='reporting'?percent(s.coverage):(Math.round(s.metric*10)/10)+'/'+(a==='score'?100:20);const target=a==='rounds'||a==='reading'||a==='hearing'?s.target[a]+(a==='rounds'?' rounds':' min'):'—';lines.push(prefix+'. '+s.name+' — '+metric+' · reported '+s.observed+'/'+length+(target!=='—'?' · target '+target:''));tableRows.push('<tr><td>'+prefix+'</td><td>'+esc(s.name)+'</td><td>'+esc(metric)+'</td><td>'+s.observed+'/'+length+'</td><td>'+target+'</td></tr>');}
+      for(const s of rows){const prefix=s.metric===null?'—':String(++rank);const metric=s.metric===null?'Target unavailable':a==='reporting'?percent(s.coverage):(Math.round(s.metric*10)/10)+'/'+(a==='score'?100:20);const target=a==='rounds'||a==='reading'||a==='hearing'?(s.target[a]===null?'Unavailable':s.target[a]+(a==='rounds'?' rounds':' min')):'—';lines.push(prefix+'. '+s.name+' — '+metric+' · reported '+s.observed+'/'+length+(target!=='—'?' · target '+target:''));tableRows.push('<tr><td>'+prefix+'</td><td>'+esc(s.name)+'</td><td>'+esc(metric)+'</td><td>'+s.observed+'/'+length+'</td><td>'+target+'</td></tr>');}
       sections.push('<section><h2>'+esc(label)+'</h2><p>'+(a==='reporting'?'Usable reported practice dates divided by all selected dates.':'Average daily '+(a==='score'?'combined':'component')+' methodology marks across all selected dates. Missing or unreadable components earn zero credit.')+' Lowest first.</p><table><thead><tr><th>#</th><th>Student</th><th>Result</th><th>Reported days</th><th>Target</th></tr></thead><tbody>'+tableRows.join('')+'</tbody></table></section>');
       lines.push('');
     }

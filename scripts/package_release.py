@@ -11,6 +11,8 @@ FILES = [
     'dist/mentor-tools.js', 'dist/mentor-tools.css',
     'dist/support.js',
     'dist/report-document.js',
+    'dist/data-sources.js', 'dist/name-matching.js', 'dist/source-workspace.js',
+    'dist/google-sheets.js', 'dist/sources-ui.js', 'dist/sources.css',
     'dist/session.js', 'dist/vendor/xlsx.full.min.js', 'dist/vendor/LICENSE',
 ]
 
