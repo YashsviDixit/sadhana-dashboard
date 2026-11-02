@@ -47,6 +47,9 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
   await page.locator('[data-close="sourcesDialog"]').click();assert.equal(await page.evaluate(()=>workspace.prescriptions),null);
   await page.locator('#startGoogle').click();await page.locator('#googleConnect').click();await page.locator('#nameStage').waitFor({state:'visible'});
   const b=page.locator('[data-match-person="example b"]');assert.match(await b.innerText(),/Suggested match/);
+  assert.match(await page.locator('.match-column-headings').innerText(),/Name in recorded responses/);assert.match(await page.locator('.match-column-headings').innerText(),/Name in prescribed values/);
+  assert.match(await b.locator('.match-reason').innerText(),/titles and punctuation/);
+  await page.screenshot({path:'/private/tmp/sadhana-name-matching-desktop.png'});
   assert.equal(await page.locator('[data-confirm-match]').count(),0);
   await b.locator('select').selectOption('');await page.locator('#matchSearch').fill('Example A');await page.locator('#matchSearch').fill('Example B');assert.equal(await b.locator('select').inputValue(),'');
   await page.locator('.prescription-bank summary').click();await page.locator('[data-prescription="example b prabhu ji"]').dragTo(b);
