@@ -9,7 +9,7 @@
   const rawText=E.displayRaw;
   const targetText=t=>M.valid(t||{})?t.rounds+' rounds · '+t.reading+' min reading · '+t.hearing+' min hearing':'Targets need clarification';
   let googleToken=null,expires=0,tokenClient=null,controller=null,generation=0,authorizationGeneration=null,googleConfig=null;
-  let setup=null,draftLinks=new Map(),draftTargets=new Map(),targetRows=[],draggedGroup=null,activeValue=null,refreshRequested=false;
+  let setup=null,draftLinks=new Map(),draftTargets=new Map(),targetRows=[],draggedGroup=null,selectedGroup=null,activeValue=null,refreshRequested=false;
 
   function addDialog(id,title,body){
     const d=document.createElement('dialog');d.id=id;d.className='source-dialog';d.setAttribute('aria-labelledby',id+'Title');
@@ -33,10 +33,10 @@
       <p class="source-note">Data and confirmations stay in this tab. Reload clears them. Google access is read-only; no sheet is edited.</p>
     </section>
     <section id="nameStage" hidden>
-      <p>Left: recorded response names. Right: prescribed names. Review suggestions, change anything needed, then confirm the whole list once.</p>
+      <p>Check the suggested matches. Drag a prescribed name from right to left, or select it and then select its response.</p>
       <p id="matchStatus" role="status" aria-live="polite"></p>
-      <div class="review-toolbar"><label>Find a response name<input id="matchSearch" type="search" placeholder="Search names"></label><label>Show<select id="matchFilter"><option value="attention">Suggestions & unmatched</option><option value="all">All names</option></select></label></div>
-      <div class="matching-layout"><details class="prescription-bank"><summary>Drag a name from the prescribed values</summary><label>Find a name in prescribed values<input id="prescriptionSearch" type="search" placeholder="Search names"></label><div id="prescriptionCards"></div></details><div id="matchRows" role="group" aria-label="Recorded response names matched to prescribed value names"></div></div>
+      <div class="matching-layout"><section class="name-pane" aria-labelledby="responseNamesHeading"><h3 id="responseNamesHeading">Recorded responses</h3><div id="matchRows" class="name-list" role="group" aria-label="Names from recorded responses"></div></section><section class="name-pane" aria-labelledby="prescribedNamesHeading"><h3 id="prescribedNamesHeading">Prescribed values</h3><div id="prescriptionCards" class="name-list" role="group" aria-label="Names from prescribed values"></div></section></div>
+      <p id="assignmentHint" class="source-note" role="status" aria-live="polite"></p>
       <p id="nameFootnote" class="source-note"></p><div class="wizard-actions"><button id="backToSources" class="text-button" type="button">Back</button><button id="confirmMatches" class="import-button" type="button">Confirm matches & continue</button></div>
     </section>
     <section id="targetStage" hidden>
@@ -102,7 +102,7 @@
       if(!identityReview&&!targetReview){applySetup();toast('Both sheets refreshed. Confirmed setup has been kept.');return;}
       if(!identityReview){buildTargetRows();renderTargets();stepTo('targets');return;}
     }
-    $('matchSearch').value='';$('matchFilter').value='attention';$('prescriptionSearch').value='';sources.querySelector('.prescription-bank').open=false;sources.querySelector('.matching-layout').classList.remove('bank-open');renderMatches();stepTo('names');
+    selectedGroup=null;draggedGroup=null;renderMatches();stepTo('names');
   }
   function reviewCurrent(){
     if(!workspace.responses||!workspace.prescriptions)return openSources();
@@ -125,43 +125,43 @@
     finally{if(current===generation)setBusy(false);}
   };
 
-  function attention(id){const p=draftLinks.get(id),old=setup.workspace.links.get(id);return !old||p.group!==old.group;}
   function matchSummary(){
     const all=[...draftLinks],exact=all.filter(([,p])=>p.origin==='exact').length,suggested=all.filter(([,p])=>p.origin==='suggested').length,ambiguous=all.filter(([,p])=>p.origin==='ambiguous').length,missing=all.filter(([,p])=>p.group===null).length;
     $('matchStatus').textContent=exact+' exact matches · '+suggested+' suggestions'+(ambiguous?' · '+ambiguous+' need a choice':'')+' · '+missing+' without a selected prescription';
-    $('nameFootnote').textContent=missing?missing+' names have no selected prescription. Their targets will stay unavailable unless clarified in the next step.':'All names have a selected prescription. One confirmation applies to the whole list, including names hidden by search.';
+    $('nameFootnote').textContent=missing?missing+' response names have no prescribed name selected. Their targets remain unavailable unless clarified in the next step.':'Confirm once to accept the matches for all recorded response names.';
+  }
+  function responseRow(id,name){
+    const p=draftLinks.get(id),g=setup.workspace.groups.get(p.group);
+    const state={exact:'Exact match',confirmed:'Previously confirmed',suggested:'Suggested match',ambiguous:'Choose a prescribed name',unmatched:'No match found',changed:'Changed'}[p.origin];
+    return '<strong>'+esc(name)+'</strong><span class="match-state">'+state+'</span><div class="match-assignment"><button type="button" class="match-drop" data-assign-to="'+esc(id)+'" aria-label="Assign selected prescribed name to '+esc(name)+'">'+(g?'<span class="assignment-origin">Prescribed name</span>'+esc(g.name):'Drop prescribed name here')+'</button>'+(g?'<button type="button" class="clear-match" data-clear-match="'+esc(id)+'" aria-label="Clear match for '+esc(name)+'">×</button>':'')+'</div>'+(p.reason?'<small class="match-reason">'+esc(p.reason)+'</small>':'');
   }
   function renderMatches(){
     if(!setup)return;matchSummary();
-    const query=$('matchSearch').value.trim().toLowerCase(),all=[...setup.workspace.groups.values()].sort((a,b)=>a.name.localeCompare(b.name));
-    const people=[...setup.prepared.names].filter(([id,name])=>name.toLowerCase().includes(query)&&($('matchFilter').value==='all'||attention(id)));
-    const headings='<div class="match-column-headings" aria-hidden="true"><span>Name in recorded responses</span><span>Name in prescribed values</span></div>';
-    $('matchRows').innerHTML=headings+(people.map(([id,name],index)=>{
-      const p=draftLinks.get(id),g=setup.workspace.groups.get(p.group),t=g?(setup.workspace.resolved.get(g.id)||g.target):null;
-      const state={exact:'Exact match',confirmed:'Previously confirmed',suggested:'Suggested match',ambiguous:'Choose a prescribed name',unmatched:'No match found',changed:'Changed'}[p.origin];
-      const candidateIDs=new Set((p.candidates||[]).map(c=>c.id));
-      const option=g=>'<option value="'+esc(g.id)+'" '+(p.group===g.id?'selected':'')+'>'+esc(g.name)+'</option>';
-      const options=candidateIDs.size&&!['exact','confirmed'].includes(p.origin)?'<optgroup label="Suggested names">'+p.candidates.map(c=>setup.workspace.groups.get(c.id)).filter(Boolean).map(option).join('')+'</optgroup><optgroup label="Other names in prescribed values">'+all.filter(g=>!candidateIDs.has(g.id)).map(option).join('')+'</optgroup>':all.map(option).join('');
-      return '<article class="match-row" data-match-person="'+esc(id)+'"><div><span class="match-source-label">Recorded responses</span><strong>'+esc(name)+'</strong><span class="match-state">'+state+'</span></div><div><label class="match-source-label" for="matchChoice'+index+'">Prescribed values</label><select id="matchChoice'+index+'" aria-label="Name in prescribed values for '+esc(name)+'"><option value="" '+(p.group===null?'selected':'')+'>No matching prescribed name</option>'+options+'</select>'+(p.reason?'<small class="match-reason">'+esc(p.reason)+'</small>':'')+'<small class="match-target">'+esc(targetText(t))+'</small></div></article>';
-    }).join('')||'<div class="review-empty">'+(query?'No names match this search.':'No suggestions need checking. Exact and previously confirmed matches are ready.')+' <button class="text-button" type="button" id="showAllMatches">View all names</button></div>');
-    renderCards();
+    $('matchRows').innerHTML=[...setup.prepared.names].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=>'<article class="match-row" data-match-person="'+esc(id)+'">'+responseRow(id,name)+'</article>').join('')||'<p>No response names found.</p>';
+    $('prescriptionCards').innerHTML=[...setup.workspace.groups.values()].sort((a,b)=>a.name.localeCompare(b.name)).map(g=>'<button type="button" class="prescription-card" draggable="true" data-prescription="'+esc(g.id)+'" aria-pressed="false">'+esc(g.name)+'</button>').join('');
+    updateSelection();
   }
-  function renderCards(){
-    if(!setup)return;const q=$('prescriptionSearch').value.toLowerCase().trim();
-    $('prescriptionCards').innerHTML=[...setup.workspace.groups.values()].filter(g=>g.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name)).map(g=>'<div class="prescription-card" draggable="true" data-prescription="'+esc(g.id)+'"><strong>'+esc(g.name)+'</strong><small>'+esc(targetText(setup.workspace.resolved.get(g.id)||g.target))+'</small></div>').join('');
+  function updateSelection(){
+    for(const card of $('prescriptionCards').querySelectorAll('[data-prescription]'))card.setAttribute('aria-pressed',String(card.dataset.prescription===selectedGroup));
+    $('assignmentHint').textContent=selectedGroup?setup.workspace.groups.get(selectedGroup).name+' selected. Choose its recorded response on the left.':'';
   }
   function changeMatch(id,group){
-    draftLinks.set(id,{group,origin:'changed'});
+    draftLinks.set(id,{group,origin:'changed',reason:group?'Selected by you':''});
     const row=[...$('matchRows').querySelectorAll('[data-match-person]')].find(r=>r.dataset.matchPerson===id);
-    if(row){row.querySelector('.match-state').textContent='Changed';const g=setup.workspace.groups.get(group);row.querySelector('.match-target').textContent=targetText(g&&(setup.workspace.resolved.get(group)||g.target));const reason=row.querySelector('.match-reason');if(reason)reason.textContent='Selected by you';}matchSummary();
+    if(row){row.innerHTML=responseRow(id,setup.prepared.names.get(id));row.querySelector('.match-drop').focus({preventScroll:true});}
+    selectedGroup=null;updateSelection();matchSummary();
   }
-  $('matchSearch').oninput=renderMatches;$('matchFilter').onchange=renderMatches;$('prescriptionSearch').oninput=renderCards;
-  $('matchRows').onchange=e=>{const row=e.target.closest('[data-match-person]');if(row)changeMatch(row.dataset.matchPerson,e.target.value||null);};
-  sources.addEventListener('click',e=>{if(e.target.closest('#showAllMatches')){$('matchFilter').value='all';$('matchSearch').value='';renderMatches();}});
+  $('nameStage').addEventListener('click',e=>{
+    const card=e.target.closest('[data-prescription]');if(card){selectedGroup=selectedGroup===card.dataset.prescription?null:card.dataset.prescription;updateSelection();return;}
+    const clear=e.target.closest('[data-clear-match]');if(clear){changeMatch(clear.dataset.clearMatch,null);return;}
+    const destination=e.target.closest('[data-assign-to]');if(destination){if(selectedGroup)changeMatch(destination.dataset.assignTo,selectedGroup);else $('assignmentHint').textContent='Select a prescribed name on the right, then choose its recorded response.';}
+  });
   sources.addEventListener('dragstart',e=>{const card=e.target.closest('[data-prescription]');if(card){draggedGroup=card.dataset.prescription;e.dataTransfer.setData('text/plain',draggedGroup);e.dataTransfer.effectAllowed='copy';}});
-  sources.addEventListener('dragend',()=>{draggedGroup=null;});
-  sources.addEventListener('dragover',e=>{if(draggedGroup&&e.target.closest('[data-match-person]'))e.preventDefault();});
-  sources.addEventListener('drop',e=>{const row=e.target.closest('[data-match-person]'),id=draggedGroup;if(!row||!setup.workspace.groups.has(id))return;e.preventDefault();row.querySelector('select').value=id;changeMatch(row.dataset.matchPerson,id);row.querySelector('select').focus();draggedGroup=null;});
+  function clearDrag(){draggedGroup=null;for(const row of $('matchRows').querySelectorAll('.is-drop-target'))row.classList.remove('is-drop-target');}
+  sources.addEventListener('dragend',clearDrag);
+  sources.addEventListener('dragover',e=>{const row=e.target.closest('[data-match-person]');if(draggedGroup&&row){e.preventDefault();row.classList.add('is-drop-target');}});
+  sources.addEventListener('dragleave',e=>{const row=e.target.closest('[data-match-person]');if(row&&!row.contains(e.relatedTarget))row.classList.remove('is-drop-target');});
+  sources.addEventListener('drop',e=>{const row=e.target.closest('[data-match-person]'),id=draggedGroup;if(!row||!setup.workspace.groups.has(id))return;e.preventDefault();changeMatch(row.dataset.matchPerson,id);clearDrag();});
   $('confirmMatches').onclick=()=>{if(!setup)return;setup.workspace.confirmLinks(draftLinks);buildTargetRows();renderTargets();stepTo('targets');};
   $('backToSources').onclick=()=>stepTo('sources');$('backToNames').onclick=()=>{renderMatches();stepTo('names');};
 
@@ -261,9 +261,8 @@
     if(config){$('responseSheet').value=config.responses;$('prescriptionSheet').value=config.prescriptions;$('responseTab').value=config.responseTab;$('prescriptionTab').value=config.prescriptionTab;}
     if(googleToken&&Date.now()<expires)readGoogle(true);else $('googleStatus').textContent='Authorization expired. Continue with Google to refresh both sheets.';
   };
-  sources.addEventListener('close',()=>{cancelRead();setup=null;draftLinks.clear();draftTargets.clear();refreshRequested=false;});
+  sources.addEventListener('close',()=>{cancelRead();setup=null;draftLinks.clear();draftTargets.clear();selectedGroup=null;refreshRequested=false;});
   $('chooseLocal').onclick=()=>chooseMethod('local');$('chooseGoogle').onclick=()=>chooseMethod('google');
-  sources.querySelector('.prescription-bank').addEventListener('toggle',e=>sources.querySelector('.matching-layout').classList.toggle('bank-open',e.target.open));
   $('importResponses').onclick=()=>openSources();$('startLocal').onclick=()=>openSources('local');$('startGoogle').onclick=()=>openSources('google');header.onclick=reviewCurrent;$('reviewSetup').onclick=reviewCurrent;$('reviewValues').onclick=showValues;
   window.addEventListener('sadhana:render',updateStatus);
   window.addEventListener('sadhana:clear',()=>{cancelRead();googleToken=null;expires=0;googleConfig=null;setup=null;activeValue=null;$('googleDisconnect').hidden=true;$('googleSourcesForm').reset();$('localSourcesForm').reset();$('googleStatus').textContent='This tab has been cleared.';for(const d of [sources,values,valueDialog])if(d.open)d.close();updateStatus();});
