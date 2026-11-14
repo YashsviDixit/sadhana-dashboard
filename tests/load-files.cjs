@@ -10,6 +10,6 @@ module.exports=async function loadFiles(page,responseFile,prescriptionFile){
   }
   await page.locator('#importResponses').click();await page.locator('#chooseLocal').click();
   await page.locator('#upload').setInputFiles(responseFile);await page.locator('#prescriptionUpload').setInputFiles(prescriptionFile);
-  await page.locator('#localSourcesForm button[type=submit]').click();await page.locator('#confirmMatches').click();await page.locator('#targetReviewForm button[type=submit]').click();
+  await page.locator('#localSourcesForm button[type=submit]').click();await page.waitForFunction(()=>!document.getElementById('sourcesDialog').open||!document.getElementById('targetStage').hidden);if(await page.locator('#sourcesDialog').isVisible())await page.locator('#targetReviewForm button[type=submit]').click();
   await page.locator('#sourcesDialog').waitFor({state:'hidden'});
 };
