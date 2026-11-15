@@ -7,7 +7,7 @@ assert.equal(E.minutes('1 day, 6:00:00'),null);
 assert.equal(E.minutes({kind:'minutes',value:1800}),null);
 assert.equal(E.clock('0515'),315);
 assert.equal(E.clock('3Am'),180);
-assert.equal(E.clock(3),180);
+assert.equal(E.clock(3),null);
 assert.equal(E.clock(3.45),null);
 assert.equal(E.clock('0000'),0);
 assert.equal(E.date('7/2/0026'),null);

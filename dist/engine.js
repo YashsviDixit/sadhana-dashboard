@@ -13,12 +13,10 @@
       '120 minutes.':120,'1hrs. 30min':90,'1hrs. 35min':95
     }),
     clock:Object.freeze({
-      '12:30 a.m':30,'12:30a.m':30,'1:30a.m':90,'2.30 a.m':150,
-      '2.10 a.m':130,'4:30 a.m':270,'3:45 p.m':945,'11:30 p m':1410,
-      '11pm.':1380,'1.20am.':80,'12.30am.':30,'10.20pm.':1340,
-      '10.50pm.':1370,"10'50pm":1370,'10.30pm.':1350,'10.45pm.':1365,
-      '10.30.pm':1350,'10.40.pm':1360,'10.25.pm':1345,'11.pm':1380,
-      '10.pm':1320,'3am.':180,'3.am':180,'4. am':240,'4.am':240,
+      '12:30 a.m':30,'12:30a.m':30,'1:30a.m':90,
+      '4:30 a.m':270,'3:45 p.m':945,'11:30 p m':1410,
+      '11pm.':1380,'11.pm':1380,'10.pm':1320,
+      '3am.':180,'3.am':180,'4. am':240,'4.am':240,
       '3.pm':900,'3pm.':900,'5.am':300
     })
   });
@@ -65,14 +63,18 @@
   }
   function clock(v){
     const mapped=dictionaryValue('clock',v);if(mapped!==null)return mapped;
-    if(v&&v.kind==='clock')return v.value>=0&&v.value<1440?v.value:null;
-    if(typeof v==='number'){if(Number.isInteger(v)&&v>=0&&v<=23)return v*60;if(Number.isInteger(v)&&v>=100&&v<=2359)v=String(v).padStart(4,'0');else return null;}
-    let s=String(v??'').trim().toLowerCase().replace(/\s/g,'');let m=s.match(/^(\d{1,2})(?:[:.](\d{1,2}))?(?::\d{2})?(am|pm)$/);
-    if(m){let h=+m[1],min=+(m[2]||0);if(h<1||h>12||min>59)return null;return (h%12+(m[3]==='pm'?12:0))*60+min;}
-    m=s.match(/^(\d{1,2})[:.](\d{1,2})(?::\d{2})?$/)||s.match(/^(\d{2})(\d{2})$/);
-    if(m)return +m[1]<24&&+m[2]<60?+m[1]*60 + +m[2]:null;
-    if(/^\d{1,2}$/.test(s)&&+s<24)return +s*60;return null;
+    if(v&&v.kind==='clock')return Number.isFinite(v.value)&&v.value>=0&&v.value<1440?v.value:null;
+    if(typeof v==='number')return null; // The source adapter must establish clock units/format.
+    // Normalize only an explicit meridiem suffix. Never turn a decimal dot
+    // into a clock separator or remove whitespace within numeric components.
+    const s=String(v??'').trim().toLowerCase().replace(/([ap])\.?\s*m\.?$/, '$1m');
+    let m=s.match(/^(\d{1,2})(?::(\d{2})(?::(\d{2}))?)?\s*(am|pm)$/);
+    if(m){const h=+m[1],min=+(m[2]||0),sec=+(m[3]||0);if(h<1||h>12||min>59||sec>59)return null;return (h%12+(m[4]==='pm'?12:0))*60+min+sec/60;}
+    m=s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)||s.match(/^(\d{2})(\d{2})$/);
+    if(m)return +m[1]<24&&+m[2]<60&&+(m[3]||0)<60?+m[1]*60 + +m[2]+ +(m[3]||0)/60:null;
+    return null;
   }
+
   function completion(actual,target,type){
     if(actual===null||!Number.isFinite(target)||target<=0)return null;
     const p=actual/target;

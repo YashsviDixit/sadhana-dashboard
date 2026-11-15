@@ -9,7 +9,7 @@ assert.equal(E.interpret('hearing','1hrs. 35min').value,95);
 assert.equal(E.interpret('rounds','SIXTEEN ').value,16);
 assert.equal(E.interpret('rounds','16,').value,16);
 assert.equal(E.interpret('wake','4:30 a.m ').value,270);
-assert.equal(E.interpret('sleep','10.30.pm').value,1350);
+assert.equal(E.interpret('sleep','10:30 p.m.').value,1350);
 assert.equal(E.interpret('wake','3:45 p.m').value,945); // Do not change an unlikely PM to AM.
 assert.equal(E.interpret('sleep','7 hrs').value,null); // Sleep length is not a bedtime.
 assert.equal(E.interpret('rounds','45 mints').value,null);
@@ -30,7 +30,7 @@ assert.equal(E.key('constructor'),'constructor');
 
 // Verify the dictionary changes actual engine inputs and scoring, while the
 // original row remains available for review and explicit unknowns stay flagged.
-const row={row:2,name:'Fictional Student',date:'2026-10-01',timestamp:'2026-10-02',rounds:'SIXTEEN',reading:'45 mints',hearing:'One and half hours',sleep:'10.30.pm',wake:'4:30 a.m'};
+const row={row:2,name:'Fictional Student',date:'2026-10-01',timestamp:'2026-10-02',rounds:'SIXTEEN',reading:'45 mints',hearing:'One and half hours',sleep:'10:30 p.m.',wake:'4:30 a.m'};
 const before=JSON.stringify(row),p=E.prepare({rows:[row]});
 assert.equal(JSON.stringify(row),before);
 assert.equal(p.flags.length,0);
@@ -42,3 +42,19 @@ assert.equal(unclear.flags.filter(f=>f.type==='Check reading').length,1);
 assert.equal(unclear.records[0].reading,null);
 assert.equal(unclear.flags[0].raw.reading,'30min to 1hrs');
 console.log('Value dictionary: typed conversions, ambiguity, provenance, field isolation and scoring integration passed.');
+
+// Only explicit clock notation is extended; numeric-looking text stays unknown.
+for(const [input,value] of [['2:15 a.m',135],['4Am.',240],['12:00 a.m.',0],['12:00 P.M.',720],['4:05 p.m.',965],['04:05:30',245.5]]){
+  assert.equal(E.clock(input),value,input);
+}
+for(const input of [4.5,'4.5','4.50','4.5pm','4.50pm','10.30.pm','2.30 a.m',"10'50pm",'4:5 am','4:60 am','13am.','20.30pm','1 2 pm','4:05:99am','04:05:99','4AM. extra','around 4Am.']){
+  assert.equal(E.clock(input),null,String(input));
+}
+assert.equal(E.interpret('wake','4.5').status,'needs-confirmation');
+assert.equal(E.minutes('4.5'),null);
+assert.equal(E.minutes(4.5),null);
+assert.equal(E.minutes('4.5 minutes'),4.5); // Explicit units establish decimal minutes.
+
+for(const input of [3,'3',515,130,2200,{kind:'clock',value:'240'},{kind:'clock',value:Infinity}])assert.equal(E.clock(input),null,JSON.stringify(input));
+assert.equal(E.clock('0515'),315); // Explicit four-digit compact clock notation.
+assert.equal(E.clock({kind:'clock',value:240}),240); // Source-established clock value.
