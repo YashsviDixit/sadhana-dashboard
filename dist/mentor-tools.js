@@ -25,6 +25,7 @@
       const rows=E.exportRanking(prepared,end,length,targets,a);
       lines.push(label.toUpperCase()+(a==='reporting'?' · dates covered':' · average daily marks out of '+(a==='score'?100:20)));
       let rank=0;const tableRows=[];
+      const groups=[{key:'own',title:'On their own',range:'Below 40',rows:[]},{key:'bhrose',title:'Prabhupada Bhrose',range:'40 to below 60',rows:[]},{key:'mercy',title:'Need mercy',range:'60 to below 80',rows:[]},{key:'good',title:'Good sadhaka',range:'80 and above',rows:[]},{key:'unranked',title:'Awaiting targets',range:'Not ranked',rows:[]}];
       for(const s of rows){
         const prefix=s.metric===null?'—':String(++rank);
         let displayed=s.metric===null?null:Math.round(s.metric*10)/10;
@@ -33,10 +34,15 @@
         const metric=s.metric===null?'Target unavailable':a==='reporting'?percent(s.coverage):displayed+'/'+(a==='score'?100:20);
         const target=a==='rounds'||a==='reading'||a==='hearing'?(s.target[a]===null?'Unavailable':s.target[a]+(a==='rounds'?' rounds':' min')):'—';
         lines.push(prefix+'. '+s.name+' — '+metric+' · reported '+s.observed+'/'+length+(target!=='—'?' · target '+target:''));
-        const band=a==='score'&&s.metric!==null?(s.metric>=80?['good','Good sadhaka']:s.metric>=60?['mercy','Need mercy']:s.metric>=40?['bhrose','Prabhupada Bhrose']:['own','On their own']):null;
-        tableRows.push('<tr'+(band?' class="score-'+band[0]+'"':'')+'><td>'+prefix+'</td><td>'+esc(s.name)+'</td><td>'+esc(metric)+(band?'<br><span class="score-label">'+band[1]+'</span>':'')+'</td><td>'+s.observed+'/'+length+'</td><td>'+target+'</td></tr>');
+        if(a==='score'){
+          const group=groups.find(g=>g.key===(s.metric===null?'unranked':s.metric>=80?'good':s.metric>=60?'mercy':s.metric>=40?'bhrose':'own'));
+          group.rows.push('<tr><td>'+prefix+'</td><td>'+esc(s.name)+'</td><td class="result">'+esc(metric)+'</td><td>'+s.observed+'/'+length+'</td></tr>');
+        }else tableRows.push('<tr><td>'+prefix+'</td><td>'+esc(s.name)+'</td><td class="result">'+esc(metric)+'</td><td>'+s.observed+'/'+length+'</td><td>'+target+'</td></tr>');
       }
-      sections.push('<section><h2>'+esc(label)+'</h2>'+(a==='score'?'<div class="score-legend"><span class="score-good">≥80 Good sadhaka</span><span class="score-mercy">60–&lt;80 Need mercy</span><span class="score-bhrose">40–&lt;60 Prabhupada Bhrose</span><span class="score-own">&lt;40 On their own</span></div>':'')+'<p>'+(a==='reporting'?'Usable reported practice dates divided by all selected dates.':'Average daily '+(a==='score'?'combined':'component')+' methodology marks across all selected dates. Missing or unreadable components earn zero credit.')+' Lowest first.</p><table><thead><tr><th>#</th><th>Student</th><th>Result</th><th>Reported days</th><th>Target</th></tr></thead><tbody>'+tableRows.join('')+'</tbody></table></section>');
+      const headings='<thead><tr><th>#</th><th>Student</th><th>'+(a==='score'?'Score / 100':a==='reporting'?'Dates covered':'Marks / 20')+'</th><th>Reported days</th>'+(a==='score'?'':'<th>Target</th>')+'</tr></thead>';
+      const description=a==='reporting'?'Showing up, one day at a time.':a==='score'?'Every day is a fresh opportunity to deepen our practice.':({rounds:'Making time for the holy name.',reading:'Growing through daily reading.',hearing:'Making space to hear and reflect.',wake:'Welcoming the day with intention.',sleep:'A restful rhythm for steady practice.'})[a];
+      const body=a==='score'?groups.filter(g=>g.rows.length).map(g=>'<div class="score-group score-'+g.key+'"><div class="group-heading"><h3>'+g.title+'</h3><span>'+g.range+' · '+g.rows.length+' '+(g.rows.length===1?'student':'students')+'</span></div><table class="overall-table">'+headings+'<tbody>'+g.rows.join('')+'</tbody></table></div>').join(''):'<table>'+headings+'<tbody>'+tableRows.join('')+'</tbody></table>';
+      sections.push('<section><div class="section-heading"><span class="eyebrow">'+(a==='score'?'Our shared journey':'Daily rhythms')+'</span><h2>'+esc(label)+'</h2><p>'+description+'</p></div>'+body+'</section>');
       lines.push('');
     }
     printReport=window.SadhanaReportDocument({start,end,length,sections});

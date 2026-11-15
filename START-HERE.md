@@ -33,4 +33,4 @@ Clock values need explicit clock notation, such as `04:30`, `0430`, or `4:30 AM`
 
 Multiple submissions by the same person for the same practice date invalidate all submissions for that day, including identical entries or corrections. The day counts as no usable report for reporting, concern streaks and export scores. Duplicate reasons and original source rows remain visible.
 
-The PDF overall score ranking uses four labeled color bands: ≥80 Good sadhaka; 60 to below 80 Need mercy; 40 to below 60 Prabhupada Bhrose; below 40 On their own. Other rankings retain their own scales; unavailable targets have no score band.
+The shared PDF groups the overall ranking under four colored category headings, with each name listed once and lowest scores first: ≥80 Good sadhaka; 60 to below 80 Need mercy; 40 to below 60 Prabhupada Bhrose; below 40 On their own. Other rankings retain their own scales; unavailable targets have no score band.
