@@ -32,8 +32,8 @@
       <p class="source-note">Data and confirmations stay in this tab. Reload clears them. Google access is read-only; no sheet is edited.</p>
     </section>
     <section id="nameStage" hidden>
-      <p>Choose the same person across both sources. Drag from right to left, or select a prescribed name and then its recorded name.</p>
-      <div class="matching-layout"><section class="name-pane" aria-labelledby="responseNamesHeading"><h3 id="responseNamesHeading">Recorded responses</h3><div id="matchRows" class="name-list" role="group" aria-label="Names from recorded responses"></div></section><section class="name-pane" aria-labelledby="prescribedNamesHeading"><h3 id="prescribedNamesHeading">Prescribed values</h3><div id="prescriptionCards" class="name-list" role="group" aria-label="Names from prescribed values"></div></section></div>
+      <p>Match each name in the response sheet to the same person in the prescribed targets sheet. Drag a name from right to left, or select a name on the right and then its response name on the left.</p>
+      <div class="matching-layout"><section class="name-pane" aria-labelledby="responseNamesHeading"><h3 id="responseNamesHeading">Names in response sheet</h3><div id="matchRows" class="name-list" role="group" aria-label="Names from recorded responses"></div></section><section class="name-pane" aria-labelledby="prescribedNamesHeading"><h3 id="prescribedNamesHeading">Names in prescribed targets sheet</h3><div id="prescriptionCards" class="name-list" role="group" aria-label="Names from prescribed values"></div></section></div>
       <p id="assignmentHint" class="source-note" role="status" aria-live="polite"></p>
       <div class="wizard-actions"><button id="finishNameEdit" class="import-button" type="button">Done</button></div>
     </section>
@@ -62,7 +62,7 @@
   function cancelRead(){generation++;controller?.abort();controller=null;setBusy(false);}
   function stepTo(step){
     for(const [id,s]of [['sourceStage','sources'],['nameStage','names'],['targetStage','targets']])$(id).hidden=s!==step;
-    $('sourcesDialogTitle').textContent={sources:'Load your data',names:editingPerson?'Choose a prescribed name':'All name matches',targets:'A few things to check'}[step];sources.scrollTop=0;$('sourcesDialogTitle').focus();
+    $('sourcesDialogTitle').textContent={sources:'Load your data',names:editingPerson?'Choose a name from the prescribed targets sheet':'All name matches',targets:'A few things to check'}[step];sources.scrollTop=0;$('sourcesDialogTitle').focus();
   }
   function chooseMethod(method){
     $('localSourcesForm').hidden=method!=='local';$('googleSourcesForm').hidden=method!=='google';
@@ -131,27 +131,27 @@
   }
   function identityHtml(id,p){
     const name=setup.prepared.names.get(id),g=setup.workspace.groups.get(p.group),count=setup.prepared.records.filter(r=>r.id===id).length,changed=p.group!==initialLinks.get(id)?.group;
-    return '<article class="identity-question" data-review-person="'+esc(id)+'"><div class="review-pair"><div><span>Recorded responses</span><strong>'+esc(name)+'</strong></div><div><span>Prescribed values</span><strong>'+esc(g?.name||'No matching name selected')+'</strong></div></div><p class="source-note">'+esc(p.reason||'Check that these names refer to the same person.')+' · '+count+' recorded updates</p><div class="question-actions"><button class="text-button" type="button" data-change-person="'+esc(id)+'">'+(g?'Change':'Choose name')+'</button>'+(g?'<button class="text-button" type="button" data-unmatch-person="'+esc(id)+'">Leave unmatched</button>':'<span class="source-note">Targets will stay unavailable.</span>')+(changed?'<button class="text-button" type="button" data-undo-person="'+esc(id)+'">Undo</button>':'')+'</div></article>';
+    return '<article class="identity-question" data-review-person="'+esc(id)+'"><div class="review-pair"><div><span>Name in response sheet</span><strong>'+esc(name)+'</strong></div><div><span>Selected name in prescribed targets sheet</span><strong>'+esc(g?.name||'No match selected')+'</strong></div></div><p class="source-note">'+esc(p.reason||'Check that these names refer to the same person.')+' · '+count+' recorded updates</p><div class="question-actions"><button class="text-button" type="button" data-change-person="'+esc(id)+'">'+(g?'Choose a different match':'Choose a match')+'</button>'+(g?'<button class="text-button" type="button" data-unmatch-person="'+esc(id)+'">Remove this match</button>':'<span class="source-note">Targets will stay unavailable.</span>')+(changed?'<button class="text-button" type="button" data-undo-person="'+esc(id)+'">Undo</button>':'')+'</div></article>';
   }
   function renderReview(){
     const preview=setup.workspace.copy();preview.confirmLinks(draftLinks);buildTargetRows(preview);
     const identities=nameQuestions(),unclear=targetRows.filter(r=>r.group&&!r.ready);
     $('identityQuestions').innerHTML=identities.map(([id,p])=>identityHtml(id,p)).join('');
     $('targetAttention').innerHTML=unclear.map(targetRowHtml).join('');
-    $('reviewSummary').textContent=identities.length||unclear.length?'Check '+(identities.length?identities.length+' name'+(identities.length===1?'':'s'):'')+(identities.length&&unclear.length?' and ':'')+(unclear.length?unclear.length+' target'+(unclear.length===1?'':'s'):'')+' below. Everything else is ready.':'All names and targets are ready.';
+    $('reviewSummary').textContent=[identities.length?'Review the matches for '+identities.length+' name'+(identities.length===1?'':'s')+' from the response sheet to the prescribed targets sheet. Selected matches will be used when you click Open dashboard.':'',unclear.length?'Clarify '+unclear.length+' prescribed target'+(unclear.length===1?'':'s')+' below.':''].filter(Boolean).join(' ')||'All names and targets are ready.';
     $('targetError').textContent='';updateFinishNote();
   }
   function editNames(id=null){editingPerson=id;selectedGroup=null;renderMatches();stepTo('names');}
   $('identityQuestions').onclick=e=>{
     const change=e.target.closest('[data-change-person]'),unmatch=e.target.closest('[data-unmatch-person]'),undo=e.target.closest('[data-undo-person]');
     if(change)editNames(change.dataset.changePerson);
-    if(unmatch){draftLinks.set(unmatch.dataset.unmatchPerson,{group:null,origin:'changed',reason:'Left unmatched by you'});renderReview();}
+    if(unmatch){draftLinks.set(unmatch.dataset.unmatchPerson,{group:null,origin:'changed',reason:'Match removed by you'});renderReview();}
     if(undo){const id=undo.dataset.undoPerson;draftLinks.set(id,{...initialLinks.get(id)});renderReview();}
   };
   function responseRow(id,name){
     const p=draftLinks.get(id),g=setup.workspace.groups.get(p.group);
     const state={exact:'Exact match',confirmed:'Previously confirmed',suggested:'Suggested match',ambiguous:'Choose a prescribed name',unmatched:'No match found',changed:'Changed'}[p.origin];
-    return '<strong>'+esc(name)+'</strong><span class="match-state">'+state+'</span><div class="match-assignment"><button type="button" class="match-drop" data-assign-to="'+esc(id)+'" aria-label="Assign selected prescribed name to '+esc(name)+'">'+(g?'<span class="assignment-origin">Prescribed name</span>'+esc(g.name):'Drop prescribed name here')+'</button>'+(g?'<button type="button" class="clear-match" data-clear-match="'+esc(id)+'" aria-label="Clear match for '+esc(name)+'">×</button>':'')+'</div>'+(p.reason?'<small class="match-reason">'+esc(p.reason)+'</small>':'');
+    return '<strong>'+esc(name)+'</strong><span class="match-state">'+state+'</span><div class="match-assignment"><button type="button" class="match-drop" data-assign-to="'+esc(id)+'" aria-label="Assign selected prescribed name to '+esc(name)+'">'+(g?'<span class="assignment-origin">Name in prescribed targets sheet</span>'+esc(g.name):'Drop a name from the prescribed targets sheet here')+'</button>'+(g?'<button type="button" class="clear-match" data-clear-match="'+esc(id)+'" aria-label="Clear match for '+esc(name)+'">×</button>':'')+'</div>'+(p.reason?'<small class="match-reason">'+esc(p.reason)+'</small>':'');
   }
   function renderMatches(){
     if(!setup)return;
