@@ -70,7 +70,7 @@
   function responseRows(sheets){
     for(const s of sheets){const h=header(s,'responses');if(!h)continue;
       const rows=[];for(const r of s.rows.filter(r=>r.row>h.row)){
-        const get=k=>r.cells[h.col[k]]||{};if(get('timestamp').value==null||get('timestamp').value==='')continue;
+        const get=k=>r.cells[h.col[k]]||{};if(['timestamp','date','name'].every(k=>get(k).value==null||String(get(k).value).trim()===''))continue; // Retain identifiable rows even when their timestamp is missing.
         const row={row:r.row,sheet:s.name,original:{}};for(const k of Object.keys(h.col)){
           const c=get(k),v=c.value;row[k]=['timestamp','date'].includes(k)?serialDate(v):['reading','hearing'].includes(k)?reading(c):['sleep','wake'].includes(k)&&typeof v==='number'&&v>=0&&v<1&&(duration(c)||c.formatType==='TIME')?{kind:'clock',value:v*1440}:v;
           row.original[k]={...c};

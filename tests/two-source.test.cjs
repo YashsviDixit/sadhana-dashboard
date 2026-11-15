@@ -73,3 +73,9 @@ const rID='fictional_responses_123456789',pID='fictional_prescriptions_123456789
  await assert.rejects(G.readPair({responses:rID,prescriptions:pID},'bad',async()=>({ok:false,status:403})),/denied access/);
  console.log('Two-source tests passed: schemas, units, mapping, target dependencies, unresolved targets, refresh, corrections, adapter parity and read-only API.');
 })().catch(e=>{console.error(e);process.exit(1);});
+
+const missingStamp=S.responseRows([sheet('Daily',[headers,['2026-10-02','2026-10-01','Example A',16,'1hr','1hr','2100','0500'],['','2026-10-01','Example A',16,'1hr','1hr','2100','0500'],[]])]);
+assert.equal(missingStamp.length,2);
+const invalidated=E.prepare({rows:missingStamp});assert.equal(invalidated.days.size,0);assert.equal(invalidated.duplicates.get('example a|2026-10-01'),2);
+assert.ok(invalidated.flags.some(f=>f.type==='Invalid timestamp'));
+console.log('Source adapter retains missing-timestamp companions for duplicate invalidation and ignores blank rows.');
