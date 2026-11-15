@@ -106,10 +106,18 @@
       r.usable=!!(r.practice&&r.submitted&&r.practice<=r.submitted.date);
       records.push(r);
     }
-    const groups=new Map();for(const r of records.filter(r=>r.usable)){const k=r.id+'|'+r.practice;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}
-    const days=new Map();for(const [k,group] of groups){group.sort((a,b)=>a.submitted.order-b.submitted.order||a.row-b.row);days.set(k,group[group.length-1]);if(group.length>1)flags.push({id:group[0].id,name:names.get(group[0].id),row:group[group.length-1].row,type:'Duplicate day',message:group.length+' submissions for '+group[0].practice+'; latest retained',date:group[0].practice,raw:group[group.length-1]});}
+    // Count every identifiable person/date submission, even if its timestamp
+    // or practice values are invalid. A correction does not rescue a duplicate.
+    const groups=new Map();for(const r of records.filter(r=>r.practice)){const k=r.id+'|'+r.practice;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}
+    const days=new Map(),duplicates=new Map();
+    for(const [k,group] of groups){
+      if(group.length>1){
+        duplicates.set(k,group.length);for(const r of group)r.usable=false;
+        flags.push({id:group[0].id,name:names.get(group[0].id),row:group[0].row,type:'Duplicate day',message:group.length+' submissions for '+group[0].practice+'; all invalidated. No usable report for this date. Source rows: '+group.map(r=>r.row).join(', '),date:group[0].practice,raw:group[0]});
+      }else if(group[0].usable)days.set(k,group[0]);
+    }
     const latest=records.filter(r=>r.submitted).map(r=>r.submitted.date).sort().pop();
-    return {names,records,days,flags,latest};
+    return {names,records,days,duplicates,flags,latest};
   }
   function displayRaw(v){return v&&typeof v==='object'?v.kind+': '+v.value:String(v??'blank');}
   function meetsTarget(r,t,axis){

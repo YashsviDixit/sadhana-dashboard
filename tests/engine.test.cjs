@@ -20,16 +20,16 @@ assert.equal(E.scores({rounds:16,reading:60,hearing:120,sleep:0,wake:300},target
 assert.equal(E.scores({rounds:16,reading:null,hearing:120,sleep:1320,wake:300},target).total,null);
 const row=(n,date,timestamp,rounds=16)=>({row:n,name:'A',date,timestamp,rounds,reading:'1hr',hearing:'1hr',sleep:'2200',wake:'0500'});
 const prepared=E.prepare({roster:['A','B'],rows:[row(2,'2026-10-01','2026-10-02T08:00:00',8),row(3,'2026-10-01','2026-10-02T09:00:00',16),row(4,'2026-10-05','2026-10-02T10:00:00')]});
-assert.equal(prepared.days.size,1);assert.equal(prepared.days.get('a|2026-10-01').rounds,16);
+assert.equal(prepared.days.size,0);assert.equal(prepared.duplicates.get('a|2026-10-01'),2);assert.ok(prepared.records.every(r=>!r.usable));
 assert.equal(prepared.flags.filter(f=>f.type==='Future date').length,1);
 assert.equal(prepared.flags.filter(f=>f.type==='Duplicate day').length,1);
 const summary=E.summarize(prepared,'2026-10-02',7,{});
-assert.equal(summary.find(s=>s.id==='a').observed,1);
+assert.equal(summary.find(s=>s.id==='a').observed,0);
 assert.equal(summary.find(s=>s.id==='b').observed,0);
 assert.equal(summary.find(s=>s.id==='b').coverage,0);
 assert.equal(E.prepare({roster:[],rows:[]}).names.size,0);
 assert.equal(E.key('  Example Student A '),'example student a');
-console.log('Scoring, parsing, missing reports, duplicate selection, future dates and empty-session checks passed.');
+console.log('Scoring, parsing, missing reports, duplicate invalidation, future dates and empty-session checks passed.');
 const streakData=E.prepare({rows:[row(2,'2026-10-01','2026-10-02',8),row(3,'2026-10-02','2026-10-02',8),row(4,'2026-10-04','2026-10-04',16),row(5,'2026-10-05','2026-10-05','bad')]});
 const mixed=E.summarize(streakData,'2026-10-06',6,{},'rounds')[0];
 assert.deepEqual(mixed.streaks,[{start:'2026-10-01',end:'2026-10-03',length:3,missing:1,below:2,ongoing:false},{start:'2026-10-06',end:'2026-10-06',length:1,missing:1,below:0,ongoing:true}]);
@@ -50,10 +50,26 @@ assert.equal(E.exportRanking(unreadable,'2026-10-02',2,{},'score')[0].metric,27.
 assert.equal(E.exportRanking(unreadable,'2026-10-02',2,{},'reading')[0].metric,0);
 assert.equal(E.exportRanking(unreadable,'2026-10-02',2,{},'wake')[0].metric,0);
 assert.equal(E.summarize(unreadable,'2026-10-02',2,{},'score')[0].average,null);
-assert.equal(E.exportRanking(prepared,'2026-10-02',2,{},'rounds').find(s=>s.id==='a').metric,10);
-assert.equal(E.exportRanking(prepared,'2026-10-05',5,{},'rounds').find(s=>s.id==='a').metric,4);
+assert.equal(E.exportRanking(prepared,'2026-10-02',2,{},'rounds').find(s=>s.id==='a').metric,0);
+assert.equal(E.exportRanking(prepared,'2026-10-05',5,{},'rounds').find(s=>s.id==='a').metric,0);
 const worstSchedule=E.prepare({rows:[{...row(2,'2026-10-01','2026-10-01'),wake:'0900',sleep:'0100'}]});
 assert.equal(E.exportRanking(worstSchedule,'2026-10-02',2,{},'wake')[0].metric,2);
 assert.equal(E.exportRanking(worstSchedule,'2026-10-02',2,{},'sleep')[0].metric,2);
 assert.throws(()=>E.exportRanking(exportData,'2026-10-02',2,{},'readingAmount'),/Unknown export/);
 console.log('Export scoring passed: PDF bands, all-date denominator, zero-credit missing/invalid components, retained partial totals, custom targets, duplicates and unchanged dashboard scores.');
+
+// Every identifiable same-person/date entry counts, including invalid companions.
+for(const companion of [row(3,'2026-10-01','2026-10-01'),row(3,'2026-10-01','bad'),row(3,'2026-10-01','2026-09-30'),{...row(3,'2026-10-01','2026-10-02',8),name:' a '}]){
+  const p=E.prepare({rows:[row(2,'2026-10-01','2026-10-01'),companion,{...row(4,'2026-10-01','2026-10-01'),name:'B'}],valueOverrides:{3:{rounds:16}}});
+  assert.equal(p.days.has('a|2026-10-01'),false);assert.equal(p.days.has('b|2026-10-01'),true);
+  for(const axis of ['reporting','score','rounds','reading','hearing','wake','sleep']){
+    const a=E.summarize(p,'2026-10-01',1,{},axis).find(s=>s.id==='a');
+    assert.equal(a.observed,0);assert.equal(a.coverage,0);assert.equal(a.average,null);assert.equal(a.gap,1);assert.equal(a.streaks[0].missing,1);
+    assert.equal(E.exportRanking(p,'2026-10-01',1,{},axis).find(s=>s.id==='a').metric,0);
+  }
+}
+const triple=E.prepare({rows:[row(2,'2026-10-01','2026-10-02',8),row(3,'2026-10-02','2026-10-02',8),...[4,5,6].map(n=>row(n,'2026-10-03','2026-10-03'))]});
+assert.equal(triple.duplicates.get('a|2026-10-03'),3);
+assert.deepEqual(E.summarize(triple,'2026-10-03',3,{},'rounds')[0].streaks,[{start:'2026-10-01',end:'2026-10-03',length:3,missing:1,below:2,ongoing:true}]);
+assert.match(triple.flags.find(f=>f.type==='Duplicate day').message,/all invalidated.*4, 5, 6/);
+console.log('Duplicate invalidation passed: identical, corrected, malformed/future companions, normalized names, all axes, export zero credit and mixed streaks.');

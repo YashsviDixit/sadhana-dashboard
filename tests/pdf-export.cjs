@@ -8,8 +8,23 @@ const assert=require('node:assert/strict');
   const csv=header+'\n'+Array.from({length:120},(_,i)=>'2026-10-20,2026-10-19,'+(i===0?'Example <img src=x onerror=alert(1)> & नाम':'Example '+i)+',16,01:00:00,01:00:00,2100,0500').join('\n');
   await loadFiles(page,{name:'fictional.csv',mimeType:'text/csv',buffer:Buffer.from('\uFEFF'+csv)});
   await page.locator('#exportSummary').click();await page.locator('#exportStart').fill('2026-10-18');await page.locator('#exportEnd').fill('2026-10-20');
+  // Exercise report presentation at exact score boundaries, independent of
+  // discrete methodology marks (the engine's real calculations have unit tests).
+  await page.evaluate(()=>{const original=E.exportRanking;E.exportRanking=(...args)=>{const rows=original(...args);if(args[4]==='score'){const metrics=[0,39.99,40,59.99,60,79.99,80,100,null];rows.forEach((r,i)=>{if(i<metrics.length)r.metric=metrics[i];});}return rows;};});
   await page.locator('#exportForm button[type="submit"]').click();const popup=page.waitForEvent('popup');await page.locator('#exportPdf').click();const report=await popup;await report.waitForLoadState();
   assert.equal(await report.locator('section tbody tr').count(),480);assert.equal(await report.locator('img,script').count(),0);assert.match(await report.locator('main').innerText(),/<img src=x onerror=alert\(1\)> & नाम/);
+  const overall=report.locator('section').first();
+  const classes=await overall.locator('tbody tr').evaluateAll(rows=>rows.slice(0,9).map(r=>r.className));
+  assert.deepEqual(classes,['score-own','score-own','score-bhrose','score-bhrose','score-mercy','score-mercy','score-good','score-good','']);
+  assert.equal(await report.locator('section:not(:first-of-type) tr[class^="score-"]').count(),0);
+  assert.match(await overall.locator('tbody tr').nth(5).innerText(),/79\.99\/100.*Need mercy/s);
+  assert.match(await overall.locator('tbody tr').nth(8).innerText(),/Target unavailable/);
+  assert.equal(await overall.locator('.score-legend span').count(),4);
+  await report.emulateMedia({media:'print'});
+  assert.equal(await overall.locator('tbody tr').first().evaluate(el=>getComputedStyle(el).printColorAdjust),'exact');
+  const backgrounds=await overall.locator('tbody tr').evaluateAll(rows=>[0,2,4,6].map(i=>getComputedStyle(rows[i]).backgroundColor));
+  assert.equal(new Set(backgrounds).size,4);assert.ok(backgrounds.every(c=>c!=='rgba(0, 0, 0, 0)'));
+  await report.emulateMedia({media:'screen'});
   assert.equal(await report.evaluate(()=>window.opener),null);
   const pdf=await report.pdf({preferCSSPageSize:true,printBackground:true});assert.ok(pdf.length>15000);assert.ok((pdf.toString('latin1').match(/\/Type \/Page\b/g)||[]).length>=8);
   await report.screenshot({path:'/private/tmp/sadhana-report-preview.png'});
