@@ -2,7 +2,7 @@
   'use strict';
   const node=typeof module!=='undefined'&&module.exports,S=node?require('./data-sources.js'):root.SadhanaSources;
   const CLIENT_ID='922908907926-6qrk1a8qlnpeal0hind7j4aiummhd8if.apps.googleusercontent.com';
-  const SCOPE='https://www.googleapis.com/auth/spreadsheets.readonly';
+  const SCOPE='https://www.googleapis.com/auth/drive.file';
   const GRID_FIELDS='spreadsheetId,properties(title,locale,timeZone),sheets(properties(sheetId,title),data(startRow,startColumn,rowData(values(effectiveValue,effectiveFormat/numberFormat))))';
   const quoted=name=>"'"+name.replace(/'/g,"''")+"'";
   function column(n){let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;}

@@ -25,7 +25,25 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
  const browser=await chromium.launch({executablePath:executable,headless:true});
  try{
   const page=await browser.newPage({viewport:{width:1360,height:1000}}),errors=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('https://accounts.google.com/gsi/client',route=>route.fulfill({contentType:'application/javascript',body:"window.google={accounts:{oauth2:{initTokenClient:config=>{window.testGoogleScope=config.scope;return {requestAccessToken:()=>config.callback({access_token:'fictional-browser-token',expires_in:3600})};}}}};"}));
+  await page.route('https://accounts.google.com/gsi/client',route=>route.fulfill({contentType:'application/javascript',body:"window.google=window.google||{};window.google.accounts={oauth2:{initTokenClient:config=>{window.testGoogleScope=config.scope;window.testGoogleUnion=config.include_granted_scopes;return {requestAccessToken:()=>config.callback({access_token:'fictional-browser-token',expires_in:3600,scope:window.testGrantedScope||config.scope})};}}};"}));
+  await page.route('https://apis.google.com/js/api.js',route=>route.fulfill({contentType:'application/javascript',body:`
+    window.gapi={load:(name,options)=>{window.google=window.google||{};google.picker={
+      ViewId:{SPREADSHEETS:'spreadsheets'},Action:{PICKED:'picked',CANCEL:'cancel'},
+      DocsView:class{constructor(id){window.testView=id;}setMimeTypes(type){window.testMime=type;return this;}},
+      PickerBuilder:class{
+        setAppId(v){window.testAppId=v;return this;}setDeveloperKey(v){return this;}
+        setOAuthToken(v){window.testPickerToken=v;return this;}setOrigin(v){window.testPickerOrigin=v;return this;}
+        setTitle(v){window.testPickerTitle=v;return this;}addView(v){return this;}setCallback(fn){this.callback=fn;return this;}
+        build(){const callback=this.callback;return {setVisible:visible=>{window.testPickerVisible=visible;},dispose:()=>{},callback};}
+      }
+    };const build=google.picker.PickerBuilder.prototype.build;google.picker.PickerBuilder.prototype.build=function(){const picker=build.call(this);window.testPicker=picker;return picker;};options.callback();}};
+  `}));
+  const pick=async(role,id)=>{
+    await page.locator(role==='responses'?'#pickResponses':'#pickPrescriptions').click();
+    await page.waitForFunction(()=>window.testPickerVisible===true);
+    await page.evaluate(id=>testPicker.callback({action:'picked',docs:[{id,name:id.includes('responses')?'Fictional daily sheet':'Fictional target sheet',mimeType:'application/vnd.google-apps.spreadsheet'}]}),id);
+    await page.locator('#sourcesDialog').waitFor({state:'visible'});
+  };
   await page.route('https://sheets.googleapis.com/**',async route=>{
    const req=route.request();calls.push({url:req.url(),method:req.method(),auth:req.headers().authorization});
    if(failPrescription&&req.url().includes(pID))return route.fulfill({status:403,contentType:'application/json',body:'{}'});
@@ -33,17 +51,20 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
   });
   await page.clock.install({time:new Date('2026-11-01T12:00:00Z')});
   await page.goto('http://127.0.0.1:'+server.address().port);
-  const defaults=await page.locator('#googleSourcesForm input[type=password]').evaluateAll(inputs=>inputs.map(input=>input.value));
-  assert.equal(defaults.length,2);assert.ok(defaults.every(value=>new URL(value).hostname==='docs.google.com'));
+  assert.equal(await page.locator('#responseSheet, #prescriptionSheet').count(),0);
   assert.equal(await page.locator('#dataSources').isVisible(),false);
   await page.locator('#importResponses').click();await page.locator('#chooseLocal').click();
   const pcsv=pHeader.join(',')+'\n2026-09-01,Example A,8,90,30\n',rcsv=rHeader.join(',')+'\n2026-10-02,2026-10-01,Example A,8,00:30:00,01:30:00,2100,0500\n';
   await page.locator('#upload').setInputFiles({name:'fictional-responses.csv',mimeType:'text/csv',buffer:Buffer.from(rcsv)});
   await page.locator('#localSourcesForm button[type=submit]').click();assert.equal(await page.locator('#nameStage').isVisible(),false);assert.equal(await page.evaluate(()=>data.rows.length),0);assert.equal(calls.length,0);
   await page.locator('[data-close="sourcesDialog"]').click();
-  await page.locator('#startGoogle').click();await page.locator('#googleSourcesForm > details > summary').click();await page.locator('#responseSheet').fill('https://docs.google.com/spreadsheets/d/'+rID+'/edit');await page.locator('#prescriptionSheet').fill('https://docs.google.com/spreadsheets/d/'+pID+'/edit');
+  await page.locator('#startGoogle').click();await page.locator('#googleConnect').click();
+  assert.equal(await page.evaluate(()=>window.testGoogleScope),'https://www.googleapis.com/auth/drive.file');assert.equal(await page.evaluate(()=>window.testGoogleUnion),false);assert.equal(calls.length,0);
+  await pick('responses',rID);await pick('prescriptions',rID);assert.match(await page.locator('#googleStatus').innerText(),/two different/);assert.equal(await page.locator('#prescriptionSheetName').innerText(),'No sheet selected');
+  await page.locator('#pickPrescriptions').click();await page.waitForFunction(()=>window.testPickerVisible===true);await page.evaluate(()=>testPicker.callback({action:'cancel'}));await page.locator('#sourcesDialog').waitFor({state:'visible'});assert.match(await page.locator('#googleStatus').innerText(),/cancelled/);
+  await pick('prescriptions',pID);assert.equal(calls.length,0);assert.equal(await page.evaluate(()=>window.testAppId),'922908907926');assert.equal(await page.evaluate(()=>window.testMime),'application/vnd.google-apps.spreadsheet');
   await page.locator('#googleConnect').click();await page.locator('#targetStage').waitFor({state:'visible'});
-  assert.equal(await page.evaluate(()=>window.testGoogleScope),'https://www.googleapis.com/auth/spreadsheets.readonly');assert.equal(await page.evaluate(()=>data.rows.length),0);
+  assert.equal(await page.evaluate(()=>data.rows.length),0);
   assert.equal(await page.locator('.identity-question').count(),1);assert.equal(await page.locator('.target-review-row').count(),1);assert.equal(await page.locator('#confirmMatches').count(),0);
   await page.locator('[data-close="sourcesDialog"]').click();assert.equal(await page.evaluate(()=>workspace.prescriptions),null);
   await page.locator('#startGoogle').click();await page.locator('#googleConnect').click();await page.locator('#targetStage').waitFor({state:'visible'});
@@ -75,16 +96,20 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
   assert.equal(await page.evaluate(()=>workspace.links.get('example b').origin),'confirmed');assert.equal(await page.locator('#startDate').inputValue(),'2026-10-01');
   readingA='Needs clarification from mentor';await page.locator('#refreshSheets').click();await page.locator('#targetStage').waitFor({state:'visible'});assert.equal(await page.locator('#nameStage').isVisible(),false);assert.equal(await page.evaluate(()=>targets['example a'].reading),30);
   const updatedA=page.locator('[data-target-key="group:example a"]');assert.match(await updatedA.innerText(),/Needs clarification from mentor/);await updatedA.locator('[data-target-field="reading"]').fill('40');await page.locator('#targetReviewForm button[type=submit]').click();assert.equal(await page.evaluate(()=>targets['example a'].reading),40);
-  await page.clock.fastForward(3600000);const countBeforeExpiry=calls.length;await page.locator('#refreshSheets').click();assert.match(await page.locator('#googleStatus').innerText(),/expired/);assert.equal(calls.length,countBeforeExpiry);await page.locator('#googleConnect').click();await page.locator('#sourcesDialog').waitFor({state:'hidden'});
+  await page.clock.fastForward(3600000);const countBeforeExpiry=calls.length;await page.locator('#refreshSheets').click();assert.match(await page.locator('#googleStatus').innerText(),/expired/);assert.equal(calls.length,countBeforeExpiry);await page.locator('#googleConnect').click();assert.equal(await page.locator('#responseSheetName').innerText(),'No sheet selected');await pick('responses',rID);await pick('prescriptions',pID);await page.locator('#googleConnect').click();await page.locator('#sourcesDialog').waitFor({state:'hidden'});
   await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.locator('#dataSources').click();await page.locator('#inspectMatches').click();const panes=await page.locator('.name-pane').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().x));assert.ok(panes[1]>panes[0]);await page.locator('[data-prescription="example b prabhu ji"]').click();await b.locator('.match-drop').click();assert.match(await b.locator('.match-drop').innerText(),/Example B Prabhu Ji/);assert.equal(await page.locator('#sourcesDialog').evaluate(el=>el.scrollWidth>el.clientWidth),false);await page.screenshot({path:'/private/tmp/sadhana-setup-names-mobile.png'});
   await page.locator('#finishNameEdit').click();assert.equal(await page.locator('#sourcesDialog').evaluate(el=>el.scrollWidth>el.clientWidth),false);await page.screenshot({path:'/private/tmp/sadhana-setup-targets-mobile.png'});await page.locator('[data-close="sourcesDialog"]').click();
+  await page.locator('#importResponses').click();await page.locator('#chooseGoogle').click();await page.locator('#googleDisconnect').click();
+  const beforeBroadGrant=calls.length;await page.evaluate(()=>window.testGrantedScope='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets.readonly');
+  await page.locator('#googleConnect').click();assert.match(await page.locator('#googleStatus').innerText(),/permissions beyond selected files/);assert.equal(calls.length,beforeBroadGrant);assert.equal(await page.evaluate(()=>data.rows.length),3);
+  await page.evaluate(()=>window.testGrantedScope=null);await page.locator('[data-close="sourcesDialog"]').click();
   const beforeFiles=calls.length;await page.locator('#importResponses').click();await page.locator('#chooseLocal').click();
   await page.locator('#prescriptionUpload').setInputFiles({name:'wrong.csv',mimeType:'text/csv',buffer:Buffer.from('Wrong,Columns\n1,2')});await page.locator('#localSourcesForm button[type=submit]').click();await page.waitForFunction(()=>document.getElementById('localStatus').textContent.includes('Previously loaded data'));assert.equal(await page.evaluate(()=>data.rows.length),3);
   await page.locator('#prescriptionUpload').setInputFiles({name:'fictional-targets.csv',mimeType:'text/csv',buffer:Buffer.from(pcsv)});await page.locator('#localSourcesForm button[type=submit]').click();await page.locator('#sourcesDialog').waitFor({state:'hidden'});
   assert.deepEqual(await page.evaluate(()=>targets['example a']),{rounds:8,reading:30,hearing:90});assert.equal(calls.length,beforeFiles);
   await page.locator('#resetData').click();assert.equal(await page.evaluate(()=>data.rows.length),0);assert.equal(await page.evaluate(()=>workspace.prescriptions),null);assert.equal(await page.locator('#refreshSheets').isVisible(),false);
-  assert.equal(await page.evaluate(()=>localStorage.length),0);assert.equal(await page.evaluate(()=>sessionStorage.length),0);assert.deepEqual(await page.locator('#googleSourcesForm input[type=password]').evaluateAll(inputs=>inputs.map(input=>input.value)),defaults);
+  assert.equal(await page.evaluate(()=>localStorage.length),0);assert.equal(await page.evaluate(()=>sessionStorage.length),0);assert.equal(await page.locator('#responseSheetName').innerText(),'No sheet selected');assert.equal(await page.locator('#prescriptionSheetName').innerText(),'No sheet selected');
   assert.ok(calls.length>6&&calls.every(c=>c.method==='GET'&&c.auth==='Bearer fictional-browser-token'));assert.deepEqual(errors,[]);
   console.log('Simplified review passed: automatic clean loads, only unresolved cases, source evidence, undo, optional name editor, one completion action, cancel, refresh, mobile and corrections.');
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
