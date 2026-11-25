@@ -2,7 +2,7 @@
 
 1. Extract the ZIP completely.
 2. Open `dist/index.html` in a current desktop browser. No Python, Node, Git or installation is needed to use it.
-3. Click **Load data** and choose **Local files** or **Google Sheets**. Local files requires two Excel/CSV exports: daily responses and personal prescriptions. Google Sheets lets you sign in and choose the response sheet and prescription sheet in Google’s file picker, then load both. Google sign-in requires the hosted site or localhost; local files work offline.
+3. Click **Load data** and choose **Local files** or **Google Sheets**. Local files requires two Excel/CSV exports: daily responses and personal prescriptions. Google Sheets shows the two default spreadsheets with their names and full links. Sign in and click Load selected sheets, or use Change to choose different sources. If Google needs file-specific approval, Allow access to selected sheets opens a picker focused on those two files. Select both and confirm. Google sign-in requires the hosted site or localhost; local files work offline.
 4. Clear names and target values are handled automatically. If anything needs clarification, a single review screen shows only those cases with the original evidence. Selected matches are used when you click **Open dashboard**. Use **Choose a different match** to correct a proposed name, **Remove this match** to keep a person unmatched, and **Undo** to reverse an edit. The optional name editor supports drag-and-drop or tap assignment; **Done** returns to review. Clarify unreadable targets beside their original entries, then use **Open dashboard** once. Entries left unresolved stay unavailable. Closing review keeps the previous dashboard unchanged.
 5. Optional: open **Settings → Student list** to include students who never submitted. Use an Excel/CSV file with a `Name` heading and one student per row; a template is in `examples/roster.csv`.
 6. Choose dates, explore a practice, and click a student's name for their history. “Start here” in the app explains the views.
@@ -15,7 +15,7 @@ Personal targets come from the prescription source. Confirmed current targets ap
 
 Use **Review values** in the dashboard or **Clarify practice values** in the source panel to clarify an unreadable value. The original response is retained. A correction can optionally apply to identical values in the same field and source; review or remove it in the same screen. Nothing is written back to Google Sheets.
 
-If Google refuses sign-in, check the selected account and whether the Google application is available to it. After authorization expires, sign in and select the two sheets again. If either sheet cannot be refreshed, the previous loaded pair remains available. Source status shows when each sheet was loaded.
+If Google refuses sign-in, check the selected account and whether the Google application is available to it. After authorization expires, sign in again; the selected sheets remain visible. Google checks access for the account you use. If either sheet cannot be refreshed, the previous loaded pair remains available. Source status shows when each sheet was loaded.
 
 Table headings and the first column stay visible while scrolling. Student windows keep their close button visible; click outside, press Escape, or use × to close them.
 

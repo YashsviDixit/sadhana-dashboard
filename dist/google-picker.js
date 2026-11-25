@@ -17,7 +17,7 @@
     });
     return loading;
   }
-  function choose(token,title,signal){
+  function choose(token,title,signal,options={}){
     return new Promise((resolve,reject)=>{
       let picker,finished=false;
       const finish=(value,error)=>{
@@ -29,15 +29,18 @@
       signal?.addEventListener('abort',abort,{once:true});
       try{
         const view=new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS).setMimeTypes(MIME);
-        picker=new google.picker.PickerBuilder().setAppId(APP_ID).setDeveloperKey(API_KEY)
-          .setOAuthToken(token).setOrigin(location.origin).setTitle(title).addView(view)
-          .setCallback(result=>{
+        if(options.fileIds?.length)view.setFileIds(options.fileIds.join(','));
+        const builder=new google.picker.PickerBuilder().setAppId(APP_ID).setDeveloperKey(API_KEY)
+          .setOAuthToken(token).setOrigin(location.origin).setTitle(title).addView(view);
+        if(options.multiple)builder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+        picker=builder.setCallback(result=>{
             if(result.action===google.picker.Action.CANCEL)return finish(null);
             if(result.action!==google.picker.Action.PICKED)return;
-            const files=result.docs||[],file=files[0];
-            if(files.length!==1||!file?.id||file.mimeType!==MIME)return finish(null,new Error('Choose one Google Sheets spreadsheet.'));
-            try{SadhanaSources.sheetId(file.id);}catch(_){return finish(null,new Error('Google returned an invalid spreadsheet. Try again.'));}
-            finish({id:file.id,name:file.name||'Selected spreadsheet'});
+            const files=result.docs||[];
+            if(!files.length||(!options.multiple&&files.length!==1)||files.some(file=>!file?.id||file.mimeType!==MIME))return finish(null,new Error(options.multiple?'Choose the two selected Google Sheets spreadsheets.':'Choose one Google Sheets spreadsheet.'));
+            try{for(const file of files)SadhanaSources.sheetId(file.id);}catch(_){return finish(null,new Error('Google returned an invalid spreadsheet. Try again.'));}
+            const selected=files.map(file=>({id:file.id,name:file.name||'Selected spreadsheet'}));
+            finish(options.multiple?selected:selected[0]);
           }).build();
         picker.setVisible(true);
       }catch(error){finish(null,error);}

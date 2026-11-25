@@ -2,7 +2,8 @@
 (function(){
   const S=window.SadhanaSources,M=window.SadhanaMatching,G=window.SadhanaGoogleSheets;
   const P=window.SadhanaGooglePicker;
-  let selectedSheets={responses:null,prescriptions:null},pickerReady=false,skipPickerClose=false,pendingRole=null;
+  const defaultSheets=()=>({responses:{...G.DEFAULT_SHEETS.responses},prescriptions:{...G.DEFAULT_SHEETS.prescriptions}});
+  let selectedSheets=defaultSheets(),accessNeeded=false,pickerReady=false,skipPickerClose=false,pendingRole=null;
   const targetFields=['rounds','reading','hearing'];
   const rawText=E.displayRaw;
   const targetText=t=>M.valid(t||{})?t.rounds+' rounds · '+t.reading+' min reading · '+t.hearing+' min hearing':'Targets need clarification';
@@ -20,10 +21,10 @@
       <div class="source-methods" role="group" aria-label="Choose data source"><button id="chooseLocal" type="button"><strong>Local files</strong><span>Select two Excel or CSV files</span></button><button id="chooseGoogle" type="button"><strong>Google Sheets</strong><span>Read both sheets using your Google account</span></button></div>
       <form id="localSourcesForm" hidden><div class="source-file-grid"><label id="localResponseSlot">Daily responses</label><label>Personal prescriptions<input id="prescriptionUpload" required type="file" accept=".xlsx,.xls,.csv"></label></div><p>Keep the original column headings in each file. Both files are required; calculated score columns are ignored.</p><button class="import-button" type="submit">Load files & review</button><p id="localStatus" role="alert"></p></form>
       <form id="googleSourcesForm" hidden>
-        <p>Sign in, then choose the two spreadsheets to use. Access is limited to files you select.</p>
-        <div class="source-file-grid"><div><strong>Daily responses</strong><p id="responseSheetName">No sheet selected</p><button id="pickResponses" class="text-button" type="button" disabled>Choose response sheet</button></div><div><strong>Personal prescriptions</strong><p id="prescriptionSheetName">No sheet selected</p><button id="pickPrescriptions" class="text-button" type="button" disabled>Choose prescription sheet</button></div></div>
+        <p>These two sheets are preselected. Sign in and load them, or use Change to choose different sheets. Your Google account must have access to both.</p>
+        <div class="source-file-grid"><div><strong>Daily responses</strong><p id="responseSheetName"></p><a id="responseSheetLink" class="source-sheet-link" target="_blank" rel="noopener noreferrer"></a><button id="pickResponses" class="text-button" type="button" disabled>Change response sheet</button></div><div><strong>Personal prescriptions</strong><p id="prescriptionSheetName"></p><a id="prescriptionSheetLink" class="source-sheet-link" target="_blank" rel="noopener noreferrer"></a><button id="pickPrescriptions" class="text-button" type="button" disabled>Change prescription sheet</button></div></div>
         <details><summary>Worksheet names · only if needed</summary><label>Response worksheet<input id="responseTab" placeholder="Automatic"></label><label>Prescription worksheet<input id="prescriptionTab" placeholder="Automatic"></label></details>
-        <p>Google's selected-file permission also allows editing those files. This dashboard only reads them and never writes changes.</p><div class="setup-actions"><button id="googleConnect" class="import-button" type="submit" disabled>Sign in with Google</button><button id="googleDisconnect" class="text-button" type="button" hidden>Forget Google access</button></div><p id="googleStatus" role="status" aria-live="polite"></p>
+        <p>Google's selected-file permission also allows editing those files. This dashboard only reads them and never writes changes.</p><div class="setup-actions"><button id="googleConnect" class="import-button" type="submit" disabled>Sign in with Google</button><button id="googleApprove" class="text-button" type="button" hidden>Allow access to selected sheets</button><button id="googleDisconnect" class="text-button" type="button" hidden>Forget Google access</button></div><p id="googleStatus" role="status" aria-live="polite"></p>
       </form>
       <div id="loadedSources" hidden><div id="sourceStatus" class="source-status-list"></div><div class="setup-actions"><button id="reviewSetup" class="text-button" type="button">Review data</button><button id="reviewValues" class="text-button" type="button">Clarify practice values</button></div></div>
       <p class="source-note">Data and confirmations stay in this tab. Reload clears them. The dashboard reads your selected sheets; no sheet is edited.</p>
@@ -54,14 +55,18 @@
   function currentConfig(){return {responses:selectedSheets.responses?.id||'',prescriptions:selectedSheets.prescriptions?.id||'',responseName:selectedSheets.responses?.name,prescriptionName:selectedSheets.prescriptions?.name,responseTab:$('responseTab').value.trim(),prescriptionTab:$('prescriptionTab').value.trim()};}
   function hasGoogleToken(){return !!googleToken&&Date.now()<expires;}
   function showSelections(){
-    $('responseSheetName').textContent=selectedSheets.responses?.name||'No sheet selected';
-    $('prescriptionSheetName').textContent=selectedSheets.prescriptions?.name||'No sheet selected';
+    for(const [role,prefix]of [['responses','response'],['prescriptions','prescription']]){
+      const sheet=selectedSheets[role],url='https://docs.google.com/spreadsheets/d/'+sheet.id+'/';
+      $(prefix+'SheetName').textContent=sheet.name||'Selected spreadsheet';$(prefix+'SheetLink').textContent=url;$(prefix+'SheetLink').href=url;
+    }
   }
+  showSelections();
   function setBusy(busy){
     for(const el of sources.querySelectorAll('button,input,select'))el.disabled=busy;
     const ready=!!tokenClient&&pickerReady;
     $('googleConnect').disabled=busy||!ready||(hasGoogleToken()&&(!selectedSheets.responses||!selectedSheets.prescriptions));
     $('googleConnect').textContent=hasGoogleToken()?'Load selected sheets':'Sign in with Google';
+    $('googleApprove').hidden=!accessNeeded||!hasGoogleToken();
     for(const id of ['pickResponses','pickPrescriptions'])$(id).disabled=busy||!ready;
     refresh.disabled=busy;
   }
@@ -253,7 +258,7 @@
     if(!/^https?:$/.test(location.protocol)){$('googleStatus').textContent='Google sign-in needs the hosted dashboard or localhost. Choose Local files here.';return;}
     if(tokenClient&&pickerReady){setBusy(false);return;}
     $('googleStatus').textContent='Loading Google sign-in and file picker…';
-    P.ready().then(()=>{pickerReady=true;setBusy(false);if(tokenClient)$('googleStatus').textContent=hasGoogleToken()?'Choose the response and prescription sheets.':'Sign in to choose your two sheets.';}).catch(error=>{$('googleStatus').textContent=error.message;});
+    P.ready().then(()=>{pickerReady=true;setBusy(false);if(tokenClient)$('googleStatus').textContent=hasGoogleToken()?'Load the two sheets shown below, or change either selection.':'Sign in to load the two sheets shown below.';}).catch(error=>{$('googleStatus').textContent=error.message;});
     if(tokenClient||$('googleIdentityScript'))return;
     const script=document.createElement('script');script.id='googleIdentityScript';script.src='https://accounts.google.com/gsi/client';script.async=true;
     script.onload=()=>{
@@ -269,12 +274,13 @@
             $('googleStatus').textContent='Google returned permissions beyond selected files. Remove this app’s previous access at myaccount.google.com/connections, then sign in again.';return;
           }
           googleToken=response.access_token;expires=Date.now()+(Number(response.expires_in)||300)*1000-30000;delete response.access_token;
-          // A new authorization can use another account. Never reuse old file selections.
-          selectedSheets={responses:null,prescriptions:null};showSelections();$('googleDisconnect').hidden=false;setBusy(false);
+          // Selections express the mentor's intent, not permission. Each read is
+          // authorized by Google for the newly signed-in account.
+          accessNeeded=false;showSelections();$('googleDisconnect').hidden=false;setBusy(false);
           const role=pendingRole;pendingRole=null;
-          if(role)pickSheet(role);else $('googleStatus').textContent='Signed in. Choose the response sheet and the prescription sheet.';
+          if(role)pickSheet(role);else $('googleStatus').textContent='Signed in. Load the two sheets shown below, or change either selection.';
         }
-      });setBusy(false);if(pickerReady)$('googleStatus').textContent='Sign in to choose your two sheets.';
+      });setBusy(false);if(pickerReady)$('googleStatus').textContent='Sign in to load the two sheets shown below.';
     };
     script.onerror=()=>{script.remove();$('googleStatus').textContent='Google sign-in could not load. Choose Google Sheets again to retry, or use Local files.';};document.head.append(script);
   }
@@ -285,41 +291,52 @@
   }
   async function pickSheet(role){
     if(!hasGoogleToken())return authorize(role);
-    cancelRead();const current=generation;controller=new AbortController();const signal=controller.signal;
+    cancelRead();const current=generation;controller=new AbortController();const signal=controller.signal;let loadAfter=false;
+    const approving=role==='access',ids=approving?[selectedSheets.responses.id,selectedSheets.prescriptions.id]:null;
     // Picker is outside the native dialog; close that dialog so its top layer cannot cover Google.
     skipPickerClose=true;sources.close();setBusy(true);
     try{
-      const file=await P.choose(googleToken,role==='responses'?'Choose the daily response sheet':'Choose the personal prescription sheet',signal);
+      const file=await P.choose(googleToken,approving?'Allow access to both selected sheets':role==='responses'?'Choose the daily response sheet':'Choose the personal prescription sheet',signal,approving?{fileIds:ids,multiple:true}:{});
       if(current!==generation)return;
       if(file){
-        const other=role==='responses'?'prescriptions':'responses';
-        if(file.id===selectedSheets[other]?.id)throw new Error('Choose two different spreadsheets: one for responses and one for prescriptions.');
-        selectedSheets[role]=file;showSelections();
+        if(approving){
+          if(file.length!==2||new Set(file.map(f=>f.id)).size!==2||!ids.every(id=>file.some(f=>f.id===id)))throw new Error('Select both sheets shown in the dashboard. If one is missing, ask its owner to share it with this Google account, or use Change to choose another sheet.');
+          // Bind roles by ID, never by the order Google returns the files.
+          for(const sheet of Object.values(selectedSheets))sheet.name=file.find(f=>f.id===sheet.id).name;
+          accessNeeded=false;loadAfter=true;
+        }else{
+          const other=role==='responses'?'prescriptions':'responses';
+          if(file.id===selectedSheets[other]?.id)throw new Error('Choose two different spreadsheets: one for responses and one for prescriptions.');
+          selectedSheets[role]=file;accessNeeded=false;
+        }
+        showSelections();
       }
-      $('googleStatus').textContent=file?'Sheet selected. Choose the other sheet, or load both when ready.':'Selection cancelled. Your previous selection is unchanged.';
+      $('googleStatus').textContent=file?'Selected sheets are ready to load.':'Selection cancelled. Your previous selection is unchanged.';
     }catch(error){if(current===generation&&error.name!=='AbortError')$('googleStatus').textContent=error.message;}
     finally{if(current===generation){controller=null;if(!sources.open)sources.showModal();setBusy(false);}}
+    if(loadAfter&&current===generation)readGoogle(refreshRequested);
   }
   $('pickResponses').onclick=()=>pickSheet('responses');$('pickPrescriptions').onclick=()=>pickSheet('prescriptions');
+  $('googleApprove').onclick=()=>pickSheet('access');
   async function readGoogle(asRefresh=false){
     let config;try{config=currentConfig();S.sheetId(config.responses);S.sheetId(config.prescriptions);}catch(e){$('googleStatus').textContent=e.message;return;}
     if(!googleToken||Date.now()>=expires){googleToken=null;$('googleStatus').textContent='Continue with Google to load both sheets.';return;}
     cancelRead();const current=generation;controller=new AbortController();const active=controller;let timedOut=false;const timer=setTimeout(()=>{timedOut=true;active.abort();},60000);setBusy(true);$('googleStatus').textContent='Reading both Google Sheets…';
-    try{const pair=await G.readPair(config,googleToken,window.fetch.bind(window),controller.signal);if(current!==generation)return;stagePair(pair,config,asRefresh);$('googleStatus').textContent='Both sources read successfully.';refreshRequested=false;}
-    catch(e){if(current===generation&&(timedOut||e.name!=='AbortError')){$('googleStatus').textContent=(timedOut?'The read timed out. Try again.':e.message)+' Previously loaded data has been kept.';if(/authorization expired/i.test(e.message)){googleToken=null;expires=0;}}}
+    try{const pair=await G.readPair(config,googleToken,window.fetch.bind(window),controller.signal);if(current!==generation)return;accessNeeded=false;stagePair(pair,config,asRefresh);$('googleStatus').textContent='Both sources read successfully.';refreshRequested=false;}
+    catch(e){if(current===generation&&(timedOut||e.name!=='AbortError')){accessNeeded=!timedOut&&[403,404].includes(e.status);$('googleStatus').textContent=(timedOut?'The read timed out. Try again.':e.message)+(accessNeeded?' Use Allow access to selected sheets to approve these two files in Google. If a sheet is missing there, this account needs access from its owner.':'')+(workspace.responses?' Previously loaded data has been kept.':'');if(/authorization expired/i.test(e.message)){googleToken=null;expires=0;}}}
     finally{clearTimeout(timer);if(current===generation){controller=null;setBusy(false);updateStatus();}}
   }
   $('googleSourcesForm').onsubmit=e=>{e.preventDefault();if(!hasGoogleToken())authorize();else readGoogle(refreshRequested);};
-  $('googleDisconnect').onclick=()=>{cancelRead();googleToken=null;expires=0;selectedSheets={responses:null,prescriptions:null};showSelections();setBusy(false);$('googleDisconnect').hidden=true;$('googleStatus').textContent='Google access token forgotten in this tab. Loaded data is retained. You can revoke the app permission in your Google Account.';};
+  $('googleDisconnect').onclick=()=>{cancelRead();googleToken=null;expires=0;selectedSheets=defaultSheets();accessNeeded=false;showSelections();setBusy(false);$('googleDisconnect').hidden=true;$('googleStatus').textContent='Google access token forgotten in this tab. Loaded data is retained. You can revoke the app permission in your Google Account.';};
   refresh.onclick=()=>{
     const config=googleConfig;openSources('google');refreshRequested=true;
     if(config){selectedSheets={responses:{id:config.responses,name:config.responseName},prescriptions:{id:config.prescriptions,name:config.prescriptionName}};showSelections();$('responseTab').value=config.responseTab;$('prescriptionTab').value=config.prescriptionTab;}
-    if(hasGoogleToken())readGoogle(true);else{$('googleStatus').textContent='Authorization expired. Sign in again and reselect the two sheets to refresh. Loaded data is retained.';setBusy(false);}
+    if(hasGoogleToken())readGoogle(true);else{$('googleStatus').textContent='Authorization expired. Sign in again to refresh the sheets shown below. Loaded data is retained.';setBusy(false);}
   };
   sources.addEventListener('close',()=>{if(skipPickerClose){skipPickerClose=false;return;}cancelRead();setup=null;draftLinks.clear();draftTargets.clear();selectedGroup=null;refreshRequested=false;});
   $('chooseLocal').onclick=()=>chooseMethod('local');$('chooseGoogle').onclick=()=>chooseMethod('google');
   $('importResponses').onclick=()=>openSources();$('startLocal').onclick=()=>openSources('local');$('startGoogle').onclick=()=>openSources('google');header.onclick=reviewCurrent;$('reviewSetup').onclick=reviewCurrent;$('reviewValues').onclick=showValues;
   window.addEventListener('sadhana:render',updateStatus);
-  window.addEventListener('sadhana:clear',()=>{cancelRead();googleToken=null;expires=0;googleConfig=null;selectedSheets={responses:null,prescriptions:null};showSelections();setup=null;activeValue=null;$('googleDisconnect').hidden=true;$('googleSourcesForm').reset();$('localSourcesForm').reset();$('googleStatus').textContent='This tab has been cleared.';for(const d of [sources,values,valueDialog])if(d.open)d.close();updateStatus();});
+  window.addEventListener('sadhana:clear',()=>{cancelRead();googleToken=null;expires=0;googleConfig=null;selectedSheets=defaultSheets();accessNeeded=false;showSelections();setup=null;activeValue=null;$('googleDisconnect').hidden=true;$('googleSourcesForm').reset();$('localSourcesForm').reset();$('googleStatus').textContent='This tab has been cleared.';for(const d of [sources,values,valueDialog])if(d.open)d.close();updateStatus();});
   updateStatus();
 })();

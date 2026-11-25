@@ -3,15 +3,20 @@
   const node=typeof module!=='undefined'&&module.exports,S=node?require('./data-sources.js'):root.SadhanaSources;
   const CLIENT_ID='922908907926-6qrk1a8qlnpeal0hind7j4aiummhd8if.apps.googleusercontent.com';
   const SCOPE='https://www.googleapis.com/auth/drive.file';
+  const DEFAULT_SHEETS=Object.freeze({
+    responses:Object.freeze({id:'11-ERIq__kEYRs4EixazJ2K_8ZY2dCxEqpv3HWBsoSdc',name:'Sadhna tracking sheet'}),
+    prescriptions:Object.freeze({id:'1Rx3ktV2hVsnmHFNMyFtNUYudigXXYiH2qizJE_IPdnU',name:"Sadhna Sharing Congregation - Devotee's Details (Responses)"})
+  });
   const GRID_FIELDS='spreadsheetId,properties(title,locale,timeZone),sheets(properties(sheetId,title),data(startRow,startColumn,rowData(values(effectiveValue,effectiveFormat/numberFormat))))';
   const quoted=name=>"'"+name.replace(/'/g,"''")+"'";
   function column(n){let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;}
   async function request(id,params,token,fetcher,signal){
     const reply=await fetcher('https://sheets.googleapis.com/v4/spreadsheets/'+id+'?'+new URLSearchParams(params),{method:'GET',headers:{Authorization:'Bearer '+token},cache:'no-store',signal});
     if(!reply.ok){
-      if(reply.status===401)throw new Error('Google authorization expired. Sign in again to refresh.');
-      if(reply.status===403)throw new Error('Google denied access. Check that this account can read the sheet and is allowed to use the Google application.');
-      if(reply.status===404)throw new Error('Spreadsheet not found or not shared with this Google account.');
+      const fail=message=>{const error=new Error(message);error.status=reply.status;throw error;};
+      if(reply.status===401)fail('Google authorization expired. Sign in again to refresh.');
+      if(reply.status===403)fail('Google denied access. Check that this account can read the sheet and is allowed to use the Google application.');
+      if(reply.status===404)fail('Spreadsheet not found or not shared with this Google account.');
       if(reply.status===429)throw new Error('Google is receiving too many requests. Wait a moment, then refresh.');
       throw new Error('Google Sheets request failed (HTTP '+reply.status+'). Try again.');
     }
@@ -38,8 +43,8 @@
   }
   async function readPair(config,token,fetcher=root.fetch.bind(root),signal){
     const jobs=[['responses',config.responses,config.responseTab],['prescriptions',config.prescriptions,config.prescriptionTab]];
-    const results=await Promise.all(jobs.map(async([kind,input,tab])=>{try{return await readSource(input,kind,tab?.trim(),token,fetcher,signal);}catch(e){if(e.name==='AbortError')throw e;throw new Error((kind==='responses'?'Responses':'Prescriptions')+': '+e.message);}}));
+    const results=await Promise.all(jobs.map(async([kind,input,tab])=>{try{return await readSource(input,kind,tab?.trim(),token,fetcher,signal);}catch(e){if(e.name==='AbortError')throw e;const error=new Error((kind==='responses'?'Responses':'Prescriptions')+': '+e.message);error.status=e.status;throw error;}}));
     return {responses:results[0],prescriptions:results[1]};
   }
-  const api={CLIENT_ID,SCOPE,readPair};if(node)module.exports=api;else root.SadhanaGoogleSheets=api;
+  const api={CLIENT_ID,SCOPE,DEFAULT_SHEETS,readPair};if(node)module.exports=api;else root.SadhanaGoogleSheets=api;
 })(typeof window!=='undefined'?window:globalThis);
