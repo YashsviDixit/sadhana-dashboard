@@ -65,9 +65,9 @@
     const mapped=dictionaryValue('clock',v);if(mapped!==null)return mapped;
     if(v&&v.kind==='clock')return Number.isFinite(v.value)&&v.value>=0&&v.value<1440?v.value:null;
     if(typeof v==='number')return null; // The source adapter must establish clock units/format.
-    // Normalize only an explicit meridiem suffix. Never turn a decimal dot
-    // into a clock separator or remove whitespace within numeric components.
-    const s=String(v??'').trim().toLowerCase().replace(/([ap])\.?\s*m\.?$/, '$1m');
+    // Spaces around an explicit colon do not change its clock meaning. Never
+    // turn a decimal dot into a separator or join separated numeric digits.
+    const s=String(v??'').trim().toLowerCase().replace(/[ \t]*:[ \t]*/g,':').replace(/([ap])\.?\s*m\.?$/, '$1m');
     let m=s.match(/^(\d{1,2})(?::(\d{2})(?::(\d{2}))?)?\s*(am|pm)$/);
     if(m){const h=+m[1],min=+(m[2]||0),sec=+(m[3]||0);if(h<1||h>12||min>59||sec>59)return null;return (h%12+(m[4]==='pm'?12:0))*60+min+sec/60;}
     m=s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)||s.match(/^(\d{2})(\d{2})$/);
@@ -102,7 +102,10 @@
       if(!r.practice)add('Invalid date','Practice date cannot be used: '+String(row.date));
       if(!r.submitted)add('Invalid timestamp','Submission timestamp cannot be read');
       if(r.practice&&r.submitted&&r.practice>r.submitted.date)add('Future date','Practice date '+r.practice+' is later than submission date '+r.submitted.date);
-      for(const f of ['rounds','reading','hearing','sleep','wake'])if(r[f]===null)add('Check '+f,'Unclear or invalid '+f+': '+displayRaw(row[f]));
+      for(const f of ['rounds','reading','hearing','sleep','wake'])if(r[f]===null){
+        const v=input(f),overDay=['reading','hearing'].includes(f)&&v?.kind==='minutes'&&Number.isFinite(v.value)&&v.value>1440;
+        add('Check '+f,'Unclear or invalid '+f+': '+displayRaw(v)+(overDay?' — exceeds 24 hours for one practice day.':''));
+      }
       r.usable=!!(r.practice&&r.submitted&&r.practice<=r.submitted.date);
       records.push(r);
     }
@@ -119,7 +122,10 @@
     const latest=records.filter(r=>r.submitted).map(r=>r.submitted.date).sort().pop();
     return {names,records,days,duplicates,flags,latest};
   }
-  function displayRaw(v){return v&&typeof v==='object'?v.kind+': '+v.value:String(v??'blank');}
+  function displayRaw(v){
+    if(v?.kind==='minutes'&&Number.isFinite(v.value))return v.value>1440&&Number.isInteger(v.value/60)?v.value/60+' hours ('+v.value+' minutes)':v.value+' minutes';
+    return v&&typeof v==='object'?v.kind+': '+v.value:String(v??'blank');
+  }
   function meetsTarget(r,t,axis){
     if(!r)return null;
     if(axis==='reporting')return true;

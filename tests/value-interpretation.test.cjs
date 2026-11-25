@@ -58,3 +58,18 @@ assert.equal(E.minutes('4.5 minutes'),4.5); // Explicit units establish decimal 
 for(const input of [3,'3',515,130,2200,{kind:'clock',value:'240'},{kind:'clock',value:Infinity}])assert.equal(E.clock(input),null,JSON.stringify(input));
 assert.equal(E.clock('0515'),315); // Explicit four-digit compact clock notation.
 assert.equal(E.clock({kind:'clock',value:240}),240); // Source-established clock value.
+
+// Only separator spacing is ignored; digits, precision and original evidence stay intact.
+for(const [input,value] of [['3: 10',190],['2 : 00',120],[' 04 : 05 : 30 ',245.5],['4 : 05 p.m.',965],['4\t:\t05',245]])assert.equal(E.clock(input),value,input);
+for(const input of ['1 2 : 00','04 : 0 5','04 : 05 : 9 9','4 : 5','4 : 60','24 : 00','4 . 50','2 : 00 or 3 : 00'])assert.equal(E.clock(input),null,input);
+const spacedRow={...row,wake:'3: 10'},spaced=E.prepare({rows:[spacedRow]});
+assert.equal(spaced.records[0].wake,190);assert.equal(spaced.flags.length,0);assert.equal(spacedRow.wake,'3: 10');
+for(const [value,hours] of [[1800,30],[2400,40]]){
+ const source={...row,reading:{kind:'minutes',value}},before=JSON.stringify(source),p=E.prepare({rows:[source]});
+ assert.equal(p.records[0].reading,null);assert.equal(E.scores(p.records[0],{rounds:16,reading:60,hearing:60}).total,null);
+ assert.equal(p.flags[0].message,'Unclear or invalid reading: '+hours+' hours ('+value+' minutes) — exceeds 24 hours for one practice day.');
+ assert.equal(JSON.stringify(source),before);
+}
+assert.equal(E.displayRaw({kind:'minutes',value:90}),'90 minutes');
+assert.equal(E.minutes({kind:'minutes',value:1440}),1440);
+assert.equal(E.date('0026-07-02T00:00:00'),null);assert.equal(E.rounds('25²'),null);assert.equal(E.clock(3),null);
