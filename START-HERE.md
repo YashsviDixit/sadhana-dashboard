@@ -29,7 +29,7 @@ The default report includes Overall score, Chanting, Reading and Reporting. Expa
 
 Please report the browser/OS, version 0.1.0, what you tried, and what went wrong. Use fictional or redacted examples when sharing feedback. Desktop Chrome has been tested; other browsers and mobile file workflows need mentor testing. The date presets end yesterday in India time, so use explicit dates when testing an old export.
 
-Clock values need explicit clock notation, such as `04:30`, `0430`, or `4:30 AM`. AM/PM punctuation such as `4Am.` is accepted. Decimal-looking entries such as `4.5`, bare numbers without clock-format metadata, and unclear text require clarification; the dashboard does not guess their meaning. Durations with explicit units, such as `4.5 minutes`, retain those units.
+Clock values need explicit clock notation, such as `04:30`, `0430`, or `4:30 AM`. Four-digit HHMM choices such as `2300` in response clock columns are also accepted when Sheets stores them as ordinary numbers. AM/PM punctuation such as `4Am.` is accepted. Decimal-looking entries such as `4.5`, short numbers without clock-format metadata, and unclear text require clarification; the dashboard does not guess their meaning. Durations with explicit units, such as `4.5 minutes`, retain those units.
 
 Multiple submissions by the same person for the same practice date invalidate all submissions for that day, including identical entries or corrections. The day counts as no usable report for reporting, concern streaks and export scores. Duplicate reasons and original source rows remain visible.
 

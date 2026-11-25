@@ -67,12 +67,28 @@
     }
     return v;
   }
+  function clock(c){
+    const v=c?.value;
+    if(typeof v!=='number')return v;
+    const clockFormat=duration(c)||/^(?:h{1,2}:mm(?::ss(?:\.0{1,6})?)?(?:\s*(?:am\/pm|a\/p))?)$/i.test(c.format||'');
+    if(v>=0&&v<1&&(!c.formatType||c.formatType==='TIME')&&clockFormat){
+      // Serial-day arithmetic can put an exact 05:00 just above the scoring
+      // boundary. Keep microsecond precision without that floating-point noise.
+      return {kind:'clock',value:Math.round(v*86400*1e6)/1e6/60};
+    }
+    // The response form uses four-digit HHMM choices. Sheets can store 2300
+    // as a number while preserving 0500 as text. Establish units here only;
+    // do not guess missing leading zeroes, decimal clocks or conflicting formats.
+    const plain=(!c.formatType||c.formatType==='NUMBER')&&/^(?:|general|0{1,4})$/i.test(c.format||'');
+    if(plain&&Number.isInteger(v)&&v>=1000&&v<=2359&&v%100<60)return {kind:'clock',value:Math.floor(v/100)*60+v%100};
+    return v;
+  }
   function responseRows(sheets){
     for(const s of sheets){const h=header(s,'responses');if(!h)continue;
       const rows=[];for(const r of s.rows.filter(r=>r.row>h.row)){
         const get=k=>r.cells[h.col[k]]||{};if(['timestamp','date','name'].every(k=>get(k).value==null||String(get(k).value).trim()===''))continue; // Retain identifiable rows even when their timestamp is missing.
         const row={row:r.row,sheet:s.name,original:{}};for(const k of Object.keys(h.col)){
-          const c=get(k),v=c.value;row[k]=['timestamp','date'].includes(k)?serialDate(v):['reading','hearing'].includes(k)?reading(c):['sleep','wake'].includes(k)&&typeof v==='number'&&v>=0&&v<1&&(duration(c)||c.formatType==='TIME')?{kind:'clock',value:v*1440}:v;
+          const c=get(k),v=c.value;row[k]=['timestamp','date'].includes(k)?serialDate(v):['reading','hearing'].includes(k)?reading(c):['sleep','wake'].includes(k)?clock(c):v;
           row.original[k]={...c};
         }rows.push(row);
       }return rows;

@@ -8,7 +8,7 @@ const duration=n=>cell(n/1440,'[h]:mm:ss');
 const snapshot=(id,title,rows)=>({spreadsheetId:id,properties:{title,timeZone:'Asia/Calcutta',locale:'en_US'},sheets:[{properties:{title:'Responses',sheetId:1,sheetType:'GRID',gridProperties:{rowCount:rows.length,columnCount:rows[0].length}},data:[{rowData:rows.map(row=>({values:row.map(v=>typeof v==='object'?v:cell(v))}))}]}]});
 let targetA=8,readingA=30,failPrescription=false;
 const daily=()=>snapshot(rID,'Fictional daily sheet',[
- rHeader,[46297+8/24,46296,'Example A',8,duration(30),duration(90),'2100','0500'],
+ rHeader,[46297+8/24,46296,'Example A',8,duration(30),duration(90),2100,cell(0.20833333333575865,'hh:mm:ss')],
  [46297+8/24,46296,'Example B',16,duration(60),duration(120),'2100','0500'],
  [46297+8/24,46296,'Example C',8,'unclear duration',duration(60),'2100','unclear clock']
 ]);
@@ -79,6 +79,7 @@ const prescribed=()=>snapshot(pID,'Fictional target sheet',[
   await c.locator('[data-target-field="reading"]').fill('45');await c.locator('[data-undo-target]').click();assert.equal(await c.locator('[data-target-field="reading"]').inputValue(),'');await c.locator('[data-use-entry="0"]').click();await c.locator('[data-target-field="reading"]').fill('45');
   await page.locator('#targetReviewForm button[type=submit]').click();await page.locator('#sourcesDialog').waitFor({state:'hidden'});
   assert.deepEqual(await page.evaluate(()=>targets['example a']),{rounds:8,reading:30,hearing:90});assert.deepEqual(await page.evaluate(()=>targets['example b']),{rounds:16,reading:90,hearing:120});assert.equal(await page.evaluate(()=>targets['example c'].reading),45);
+  assert.deepEqual(await page.evaluate(()=>{const r=prepared.records.find(r=>r.name==='Example A');return {sleep:r.sleep,wake:r.wake,total:E.scores(r,targets[r.id]).total,rawSleep:r.original.sleep.value};}),{sleep:1260,wake:300,total:100,rawSleep:2100});
   for(const [id,v]of [['startDate','2026-10-01'],['endDate','2026-10-02']]){await page.locator('#'+id).fill(v);await page.locator('#'+id).dispatchEvent('change');}
   const coverage=await page.evaluate(()=>E.summarize(prepared,'2026-10-02',2,targets,'reporting').map(s=>s.coverage));
   await page.locator('[data-open-review="values"]').click();await page.locator('[data-value-row="4"][data-value-field="reading"]').click();await page.locator('#correctedValue').fill('45');await page.locator('#valueForm button[type=submit]').click();

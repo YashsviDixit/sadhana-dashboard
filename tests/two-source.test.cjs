@@ -4,7 +4,7 @@ const X=require('../dist/vendor/xlsx.full.min.js');
 const headers=['Timestamp','DATE / तिथि','NAME / नाम','Today chanted round','Today total reading time','Today total hearing time','Sleeping Time',"Today's Wake-Up Time"];
 const cell=(value,formatType,format)=>({value,formatType,format});
 const sheet=(name,values)=>({name,rows:values.map((r,i)=>({row:i+1,cells:r.map(v=>typeof v==='object'&&v!==null?v:cell(v))}))});
-const responses=sheet('Daily',[headers,['2026-10-02T08:30:00','2026-10-01','Example A',8,cell(30/1440,'TIME','[h]:mm:ss'),cell(90/1440,'TIME','[h]:mm:ss'),'2100','0500'],['2026-10-02','2026-10-01','Example B',16,'1hr','2hr','2200','0500']]);
+const responses=sheet('Daily',[headers,['2026-10-02T08:30:00','2026-10-01','Example A',8,cell(30/1440,'TIME','[h]:mm:ss'),cell(90/1440,'TIME','[h]:mm:ss'),2100,'0500'],['2026-10-02','2026-10-01','Example B',16,'1hr','2hr','2200','0500']]);
 const prescriptions=sheet('Targets',[
  ['Timestamp','Devotees Name','Prescribed Chanting Rounds','Prescribed Hearing Time (Mins)','Prescribed Reading Time (Mins)'],
  ['2026-09-01','Example A',8,cell(90/1440,'TIME','[h]:mm:ss'),30],
@@ -60,12 +60,62 @@ const wb=X.utils.book_new(),ws=X.utils.aoa_to_sheet([headers,['2026-10-02','2026
 const imported=X.read(X.write(wb,{type:'buffer',bookType:'xlsx'}),{type:'buffer',cellNF:true});
 assert.equal(E.minutes(S.responseRows(S.workbook(imported,X))[0].reading),30);
 const apiSheet=s=>({properties:{title:s.name,sheetId:1,sheetType:'GRID',gridProperties:{rowCount:s.rows.length,columnCount:s.rows[0].cells.length}},data:[{rowData:s.rows.map(r=>({values:r.cells.map(c=>({effectiveValue:typeof c.value==='number'?{numberValue:c.value}:{stringValue:c.value},effectiveFormat:{numberFormat:{type:c.formatType,pattern:c.format}}}))}))}]});
+
+// Source-aware HHMM interpretation must agree for numeric and textual clocks,
+// without restoring generic engine guesses about numbers or other field units.
+const adaptedClock=c=>S.responseRows([sheet('Daily',[headers,['2026-10-02','2026-10-01','Example',16,'1hr','1hr',c,c]])])[0];
+for(let v=1000;v<=2359;v++){
+ const row=adaptedClock(v),expected=v%100<60?Math.floor(v/100)*60+v%100:null;
+ assert.equal(E.clock(row.sleep),expected,String(v));assert.equal(E.clock(row.wake),expected,String(v));
+ if(expected!==null)assert.equal(E.clock(row.sleep),E.clock(String(v)));
+}
+for(const v of [0,30,100,200,515,999,2400,2360,-2300,4.5,10.3,2300.5,NaN,Infinity])assert.equal(E.clock(adaptedClock(v).sleep),null,String(v));
+for(const c of [cell(2300,'TIME','h:mm:ss'),cell(2300,'DATE','yyyy-mm-dd'),cell(2300,'PERCENT','0%'),cell(2300,'NUMBER','0.00'),cell(2300,undefined,'[h]:mm:ss'),cell(2300,undefined,'$0')])assert.equal(E.clock(adaptedClock(c).sleep),null,JSON.stringify(c));
+for(const c of [cell(2300,'NUMBER','0'),cell(2300,undefined,'General'),cell(2300,undefined,'0000')])assert.equal(E.clock(adaptedClock(c).sleep),1380);
+assert.equal(E.clock(2300),null); // Only the source adapter can establish numeric clock units.
+assert.equal(E.minutes(S.responseRows([sheet('Daily',[headers,['2026-10-02','2026-10-01','Example',16,2300,2300,2300,'0500']])])[0].reading),null);
+
+// Exercise both real workbook serialization and the Google grid adapter.
+const clockBook=X.utils.book_new(),clockSheet=X.utils.aoa_to_sheet([headers,
+ ['2026-10-02','2026-10-01','Example Clock',16,1/24,1/24,2300,0.20833333333575865],
+ ['2026-10-03','2026-10-02','Example Clock',16,1/24,1/24,2359,(18000.001)/86400]
+]);
+for(const n of [2,3]){clockSheet['E'+n].z='[h]:mm:ss';clockSheet['F'+n].z='[h]:mm:ss';clockSheet['H'+n].z='hh:mm:ss.000';}
+X.utils.book_append_sheet(clockBook,clockSheet,'Daily');
+const clockWorkbookRows=S.responseRows(S.workbook(X.read(X.write(clockBook,{type:'buffer',bookType:'xlsx'}),{type:'buffer',cellNF:true}),X));
+const clockGrid=sheet('Daily',[headers,
+ ['2026-10-02','2026-10-01','Example Clock',16,'1hr','1hr',2300,cell(0.20833333333575865,'TIME','hh:mm:ss.000')],
+ ['2026-10-03','2026-10-02','Example Clock',16,'1hr','1hr',2359,cell(18000.001/86400,'TIME','hh:mm:ss.000')]
+]);
+const clockApiRows=S.responseRows(S.snapshot({sheets:[apiSheet(clockGrid)]}));
+for(const sourceRows of [clockWorkbookRows,clockApiRows]){
+ const before=JSON.stringify(sourceRows),p=E.prepare({rows:sourceRows}),a=p.records[0],b=p.records[1],target={rounds:16,reading:60,hearing:60};
+ assert.equal(a.sleep,1380);assert.equal(a.wake,300);assert.equal(E.scores(a,target).total,88);
+ assert.ok(b.wake>300);assert.equal(E.scores(b,target).wake,15); // A real millisecond after 5am stays late.
+ assert.equal(sourceRows[0].original.sleep.value,2300);assert.equal(sourceRows[0].original.wake.value,0.20833333333575865);
+ assert.equal(JSON.stringify(sourceRows),before);assert.equal(p.flags.length,0);
+}
+assert.equal(E.clock(adaptedClock(cell(0,'TIME','hh:mm:ss')).sleep),0);
+assert.equal(E.clock(adaptedClock(cell(.5,'TIME','hh:mm:ss')).sleep),720);
+assert.ok(E.clock(adaptedClock(cell(86399.999/86400,'TIME','hh:mm:ss.000')).sleep)<1440);
+for(const format of ['h:mm','hh:mm','h:mm am/pm','hh:mm AM/PM','h:mm a/p'])assert.equal(E.clock(adaptedClock(cell(22/24,undefined,format)).sleep),1320,format);
+for(const format of ['yyyy-mm-dd h:mm','0.00','0%','"h:mm"'])assert.equal(E.clock(adaptedClock(cell(22/24,undefined,format)).sleep),null,format);
+for(const type of ['DATE','DATE_TIME','PERCENT'])assert.equal(E.clock(adaptedClock(cell(22/24,type,'h:mm')).sleep),null,type);
+// Actual XLSX and Google metadata can spell the same clock differently.
+for(const format of ['h:mm','h:mm am/pm']){
+ clockSheet.G2={t:'n',v:22/24,z:format};
+ const importedClock=S.responseRows(S.workbook(X.read(X.write(clockBook,{type:'buffer',bookType:'xlsx'}),{type:'buffer',cellNF:true}),X))[0];
+ assert.equal(E.clock(importedClock.sleep),1320);
+ const apiClock=S.responseRows(S.snapshot({sheets:[apiSheet(sheet('Daily',[headers,['2026-10-02','2026-10-01','Example',16,'1hr','1hr',cell(22/24,'TIME',format),'0500']]))]}))[0];
+ assert.equal(E.clock(apiClock.sleep),1320);
+}
 const rID='fictional_responses_123456789',pID='fictional_prescriptions_123456789';
 (async()=>{
  const calls=[];
  const mock=async(url,options)=>{calls.push([url,options]);const response=url.includes(rID),source=response?responses:prescriptions;return {ok:true,json:async()=>({spreadsheetId:response?rID:pID,properties:{title:source.name,timeZone:'Asia/Calcutta'},sheets:[apiSheet(source)]})};};
  const pair=await G.readPair({responses:rID,prescriptions:pID},'fictional-token',mock);
  assert.equal(pair.responses.rows.length,2);assert.equal(pair.prescriptions.rows[0].target.reading,30);
+ assert.equal(E.prepare({rows:pair.responses.rows}).records[0].sleep,1260);
  assert.ok(calls.every(([,o])=>o.method==='GET'&&o.headers.Authorization==='Bearer fictional-token'));
  assert.ok(calls.filter(([u])=>new URL(u).searchParams.has('ranges')).every(([u])=>!new URL(u).searchParams.get('fields').includes('userEnteredValue')));
  assert.ok(calls.some(([u])=>new URL(u).searchParams.get('ranges')==="'Targets'!A1:E"));
